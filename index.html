@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Archeologická mapa – Plzeň-sever | AMČR</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gov-design-system-ce/styles@4.2.9/lib/styles.css"/>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@gov-design-system-ce/components@4.2.9/dist/core/core.esm.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  /* Layout */
+  html, body { margin:0; padding:0; height:100%; overflow:hidden; }
+  body { display:flex; flex-direction:column; font-family:var(--font-family-primary, 'Roboto', sans-serif); background:var(--background-page, #f5f5f5); }
+
+  /* Top bar */
+  #topbar {
+    background: #1b3a6e;
+    color: #fff;
+    padding: 18px 28px 20px;
+    flex-shrink: 0;
+    border-bottom: 4px solid #c8102e;
+    z-index: 100;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 32px;
+  }
+  #topbar-text {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+  }
+  #topbar .top-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  #topbar .logo-icon {
+    width: 28px; height: 28px;
+    background: rgba(255,255,255,.15);
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+  #topbar .top-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,.6);
+  }
+  #topbar h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    margin: 0;
+    line-height: 1.2;
+  }
+  #topbar .top-desc {
+    font-size: 13px;
+    color: rgba(255,255,255,.75);
+    line-height: 1.6;
+    max-width: 700px;
+  }
+  #topbar .top-desc a {
+    color: rgba(255,255,255,.9);
+  }
+  .badge-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    background: rgba(255,255,255,.12);
+    border: 1px solid rgba(255,255,255,.2);
+    padding: 3px 12px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255,255,255,.9);
+    width: fit-content;
+  }
+
+  /* Infobar merged into topbar */
+  #stats-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex-shrink: 0;
+    width: 260px;
+  }
+  .stat-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,.10);
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 6px;
+    padding: 5px 10px 5px 7px;
+    min-width: 0;
+  }
+  .stat-icon {
+    width: 26px; height: 26px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    padding: 4px; box-sizing: border-box;
+  }
+  .stat-icon svg { width: 100%; height: 100%; }
+  .stat-body { flex: 1; min-width: 0; }
+  .stat-count {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .stat-label {
+    font-size: 10px;
+    color: rgba(255,255,255,.65);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 1px;
+  }
+  .stat-bar-wrap {
+    height: 3px;
+    background: rgba(255,255,255,.15);
+    border-radius: 2px;
+    margin-top: 5px;
+    overflow: hidden;
+  }
+  .stat-bar {
+    height: 100%;
+    border-radius: 2px;
+    opacity: .85;
+    transition: width .3s;
+  }
+
+
+  /* Main content */
+  #main { display:flex; flex:1; overflow:hidden; min-height:0; position:relative; }
+
+  /* Sidebar */
+  #sidebar {
+    width: 340px;
+    min-width: 340px;
+    max-width: 340px;
+    flex-shrink: 0;
+    background: var(--background-white, #fff);
+    border-right: 1px solid var(--border-subtlest, #e0e0e0);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 1;
+  }
+
+  .sidebar-filters {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-subtlest, #e0e0e0);
+    background: var(--background-neutral-subtlest, #fafafa);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  .filter-row { display:flex; gap:8px; width:100%; box-sizing:border-box; }
+
+  .count-bar {
+    padding: 6px 16px;
+    font-size: 12px;
+    color: var(--text-secondary, #666);
+    flex-shrink: 0;
+    display: block;
+    box-sizing: border-box;
+    width: 340px;
+    max-width: 340px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .count-bar b { color: var(--text-primary-color, #254a8e); font-weight:700; }
+
+  #list {
+    flex:1;
+    overflow-y: auto;
+  }
+  #list::-webkit-scrollbar { width: 4px; }
+  #list::-webkit-scrollbar-thumb { background: var(--border-subtle, #ccc); border-radius: 2px; }
+
+  .site-item {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-subtlest, #eee);
+    cursor: pointer;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    transition: background .1s;
+    position: relative;
+  }
+  .site-item:hover { background: var(--background-primary-subtlest, #eef2fb); }
+  .site-item.active {
+    background: var(--background-primary-subtlest, #eef2fb);
+    border-left: 3px solid var(--border-primary, #254a8e);
+  }
+  .site-item.active .item-title { color: var(--text-primary-color, #254a8e); }
+  .site-icon {
+    width: 32px; height: 32px;
+    border-radius: 6px;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+    margin-top:2px;
+    padding: 5px;
+    box-sizing: border-box;
+  }
+  .site-icon svg {
+    width: 100%; height: 100%;
+    display: block;
+  }
+  .item-body { flex:1; min-width:0; }
+  .item-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary, #1a1a1a);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+  }
+  .item-id {
+    font-size: 10px;
+    color: var(--text-tertiary, #aaa);
+    margin-top: 1px;
+    font-family: monospace;
+    letter-spacing: .02em;
+  }
+  .item-sub {
+    font-size: 11px;
+    color: var(--text-secondary, #666);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .item-tag {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 1px 7px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 500;
+    background: var(--background-primary-subtlest, #eef2fb);
+    color: var(--text-primary-color, #254a8e);
+    border: 1px solid var(--border-primary-subtle, #b3c4e8);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #empty-state {
+    padding: 40px 24px;
+    text-align: center;
+    color: var(--text-tertiary, #999);
+  }
+  #empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  #empty-state p { font-size: 13px; line-height: 1.6; }
+
+  /* Map */
+  #mapwrap {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: row;
+  }
+  #map { flex: 1; min-width: 0; height: 100%; }
+
+  /* Detail panel — right side */
+  #detail-panel {
+    width: 0;
+    min-width: 0;
+    overflow: hidden;
+    background: #fff;
+    border-left: 1px solid #e0e0e0;
+    box-shadow: -3px 0 16px rgba(0,0,0,.10);
+    transform: none;
+    transition: width .3s cubic-bezier(.4,0,.2,1), min-width .3s cubic-bezier(.4,0,.2,1);
+    z-index: 500;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  #detail-panel.open {
+    width: 320px;
+    min-width: 320px;
+    overflow-y: auto;
+  }
+  #detail-panel::-webkit-scrollbar { width: 4px; }
+  #detail-panel::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+
+  .detail-header {
+    background: #1b3a6e;
+    color: #fff;
+    padding: 12px 12px 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    flex-shrink: 0;
+  }
+  .detail-header .detail-close { margin-left: auto; }
+  .detail-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+  }
+  .detail-close {
+    background: rgba(255,255,255,.15);
+    border: none;
+    color: #fff;
+    width: 26px; height: 26px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 15px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .detail-close:hover { background: rgba(255,255,255,.25); }
+
+  .detail-body {
+    padding: 14px 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .detail-section { width: 100%; }
+  .detail-section + .detail-section {
+    border-top: 1px solid #eee;
+    padding-top: 14px;
+    margin-top: 14px;
+  }
+  .detail-section h3 {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--text-secondary, #666);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-subtlest, #eee);
+  }
+  .detail-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    align-items: flex-start;
+    font-size: 13px;
+  }
+  .detail-label {
+    color: var(--text-secondary, #666);
+    min-width: 120px;
+    flex-shrink: 0;
+    font-size: 12px;
+    padding-top: 1px;
+  }
+  .detail-value {
+    color: var(--text-primary, #1a1a1a);
+    word-break: break-word;
+    line-height: 1.5;
+  }
+  .period-chips { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+  .period-chip {
+    display: inline-block;
+    padding: 2px 9px;
+    background: var(--background-secondary-subtlest, #fef6e4);
+    border: 1px solid var(--border-secondary-subtle, #f5d87a);
+    border-radius: 3px;
+    font-size: 11px;
+    color: var(--text-primary, #1a1a1a);
+  }
+  .detail-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    padding: 7px 14px;
+    background: var(--background-primary, #254a8e);
+    color: #fff !important;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    transition: background .15s;
+  }
+  .detail-link:hover { background: #1a3a73; }
+
+  .detail-popis {
+    font-size: 13px;
+    color: var(--text-secondary, #555);
+    line-height: 1.7;
+    margin-top: 6px;
+  }
+
+  /* Custom search input (gov-form-search doesn't work well for our case) */
+  .search-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 12px;
+    border: 1px solid var(--border-input, #bbb);
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--text-primary, #1a1a1a);
+    background: #fff;
+    outline: none;
+    font-family: inherit;
+  }
+  .search-input:focus { border-color: var(--border-primary, #254a8e); box-shadow: 0 0 0 2px rgba(37,74,142,.15); }
+
+  .native-select {
+    flex:1;
+    min-width: 0;
+    padding: 6px 8px;
+    border: 1px solid var(--border-input, #bbb);
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--text-primary, #1a1a1a);
+    background: #fff;
+    outline: none;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .native-select:focus { border-color: var(--border-primary, #254a8e); }
+
+
+  /* === Timeline filter === */
+  #timeline-wrap {
+    padding: 10px 16px 12px;
+    border-bottom: 1px solid var(--border-subtlest, #e8e8e8);
+    background: #fff;
+    flex-shrink: 0;
+  }
+  #timeline-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #666;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  #timeline-eras {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .era-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+    border: none;
+    background: none;
+    padding: 0;
+  }
+  .era-dot {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: #e8e8e8;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    transition: background .15s, transform .15s, box-shadow .15s;
+    position: relative;
+    z-index: 1;
+    color: #555;
+    padding: 6px;
+    box-sizing: border-box;
+  }
+  .era-dot svg { width: 100%; height: 100%; display: block; }
+  .era-btn.active .era-dot { color: #fff; }
+  .era-btn:hover:not(.active) .era-dot { color: #1b3a6e; }
+  .era-btn.active .era-dot {
+    background: #1b3a6e;
+    transform: scale(1.15);
+    box-shadow: 0 2px 8px rgba(27,58,110,.35);
+  }
+  .era-btn:hover .era-dot { background: #c5d2e8; }
+  .era-btn.active:hover .era-dot { background: #254a8e; }
+  .era-name {
+    font-size: 9px;
+    color: #888;
+    text-align: center;
+    margin-top: 3px;
+    line-height: 1.2;
+    max-width: 46px;
+  }
+  .era-btn.active .era-name { color: #1b3a6e; font-weight: 700; }
+  /* connecting line between dots */
+  .era-line {
+    flex: 1;
+    height: 2px;
+    background: #ddd;
+    align-self: center;
+    margin-bottom: 18px;
+    min-width: 4px;
+  }
+  .era-count {
+    font-size: 9px;
+    font-weight: 700;
+    color: #fff;
+    background: #c8102e;
+    border-radius: 8px;
+    padding: 1px 4px;
+    position: absolute;
+    top: -5px; right: -5px;
+    display: none;
+  }
+  .era-btn.active .era-count { display: block; }
+
+
+  /* Layer switcher */
+  #layer-switcher {
+    position: absolute;
+    bottom: 28px;
+    left: 12px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.18);
+    padding: 5px;
+    border: 1px solid rgba(0,0,0,.1);
+  }
+  .layer-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 9px 5px 6px;
+    border: none;
+    border-radius: 5px;
+    background: transparent;
+    cursor: pointer;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: #444;
+    font-family: inherit;
+    transition: background .12s, color .12s;
+    white-space: nowrap;
+  }
+  .layer-btn svg {
+    width: 16px; height: 16px;
+    flex-shrink: 0;
+    opacity: .7;
+  }
+  .layer-btn:hover { background: #f0f4fa; color: #1b3a6e; }
+  .layer-btn.active {
+    background: #1b3a6e;
+    color: #fff;
+  }
+  .layer-btn.active svg { opacity: 1; }
+
+  /* Leaflet popup style */
+  .leaflet-popup-content-wrapper {
+    border-radius: 6px !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,.2) !important;
+    border-top: 3px solid #254a8e !important;
+  }
+  .popup-title { font-size:13px; font-weight:700; color:#254a8e; margin-bottom:3px; }
+  .popup-sub { font-size:11px; color:#666; }
+  .popup-type { font-size:11px; color:#333; margin-top:3px; }
+
+  .topbar-bottom { display:flex; align-items:flex-start; gap:40px; margin-top:10px; flex-wrap:wrap; }
+  .stats-block { display:flex; flex-direction:column; gap:5px; min-width:260px; }
+  .stats-title { font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:rgba(255,255,255,.5); margin-bottom:3px; }
+  .sr { display:flex; align-items:center; gap:7px; }
+  .sl { font-size:11px; color:rgba(255,255,255,.8); width:80px; flex-shrink:0; }
+  .sbw { flex:1; height:6px; background:rgba(255,255,255,.12); border-radius:3px; overflow:hidden; min-width:80px; }
+  .sb { height:100%; border-radius:3px; }
+  .sn { font-size:11px; font-weight:700; color:rgba(255,255,255,.9); width:22px; text-align:right; flex-shrink:0; }
+</style>
+</head>
+<body>
+
+<!-- Hero header -->
+<div id="topbar">
+  <div id="topbar-text">
+    <div class="top-row">
+      <div class="logo-icon">⛏</div>
+      <span class="top-label">Archeologická databáze Čech · AMČR</span>
+    </div>
+    <h1>Archeologické lokality – Plzeň-sever</h1>
+    <p class="top-desc">
+      Záznamy o místech s archeologickými nálezy odpovídajících určitému prostorovému vymezení, charakteristickému archeologickému projevu a předpokládané funkční souvislosti v minulosti.
+    </p>
+    <div class="badge-count">📍 113 lokalit &nbsp;·&nbsp; Zdroj: <a href="https://amcr-info.aiscr.cz" target="_blank" rel="noopener" style="color:rgba(255,255,255,.9);text-decoration:underline">AMČR</a></div>
+  </div>
+  <div class="stats-block">
+    <div class="stats-title">Zastoupení kategorií</div>
+    <div class="sr"><span class="sl">Sídla elit</span><div class="sbw"><div class="sb" style="width:100%;background:#e05555"></div></div><span class="sn">48</span></div>
+    <div class="sr"><span class="sl">Sídliště</span><div class="sbw"><div class="sb" style="width:67%;background:#2eaa6a"></div></div><span class="sn">32</span></div>
+    <div class="sr"><span class="sl">Výroba</span><div class="sbw"><div class="sb" style="width:33%;background:#3a8fd4"></div></div><span class="sn">16</span></div>
+    <div class="sr"><span class="sl">Kultovní</span><div class="sbw"><div class="sb" style="width:23%;background:#d4960a"></div></div><span class="sn">11</span></div>
+    <div class="sr"><span class="sl">Ohrazení</span><div class="sbw"><div class="sb" style="width:8%;background:#9b59b6"></div></div><span class="sn">4</span></div>
+    <div class="sr"><span class="sl">Vojenství</span><div class="sbw"><div class="sb" style="width:4%;background:#888"></div></div><span class="sn">2</span></div>
+  </div>
+</div>
+
+<!-- Main -->
+<div id="main">
+
+  <!-- Sidebar -->
+  <div id="sidebar">
+  <div id="timeline-wrap">
+    <div id="timeline-label">Filtrovat podle období</div>
+    <div id="timeline-eras">
+      <button class="era-btn" data-era="prehistory"   onclick="setEra('prehistory')"   title="Pravěk"><div class="era-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,3 3,21 21,21"/><line x1="12" y1="9" x2="12" y2="15"/><line x1="9" y1="17" x2="15" y2="17"/></svg><span class="era-count" id="ec-prehistory"></span></div><div class="era-name">Pravěk</div></button>
+      <div class="era-line"></div>
+      <button class="era-btn" data-era="emiddleages"  onclick="setEra('emiddleages')"  title="Raný středověk"><div class="era-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/><path d="M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4"/></svg><span class="era-count" id="ec-emiddleages"></span></div><div class="era-name">Raný stř.</div></button>
+      <div class="era-line"></div>
+      <button class="era-btn" data-era="hmiddleages"  onclick="setEra('hmiddleages')"  title="Vrcholný středověk"><div class="era-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V9h2V6h2V9h4V6h2V9h2v12"/><path d="M9 21v-5h6v5"/></svg><span class="era-count" id="ec-hmiddleages"></span></div><div class="era-name">Vrcholný stř.</div></button>
+      <div class="era-line"></div>
+      <button class="era-btn" data-era="lmiddleages"  onclick="setEra('lmiddleages')"  title="Pozdní středověk"><div class="era-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3C8.5 3 6 6 6 9c0 4 6 12 6 12s6-8 6-12c0-3-2.5-6-6-6z"/><circle cx="12" cy="9" r="2.5"/></svg><span class="era-count" id="ec-lmiddleages"></span></div><div class="era-name">Pozdní stř.</div></button>
+      <div class="era-line"></div>
+      <button class="era-btn" data-era="newage"       onclick="setEra('newage')"       title="Novověk"><div class="era-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="1"/><path d="M3 13h18M10 8V4a2 2 0 0 1 4 0v4"/><path d="M10 13v8m4-8v8"/></svg><span class="era-count" id="ec-newage"></span></div><div class="era-name">Novověk</div></button>
+      <div class="era-line"></div>
+      <button class="era-btn" data-era="industrial"   onclick="setEra('industrial')"   title="Industriální"><div class="era-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20M6 20V12l4 3v-3l4 3v-3l4 3v-3"/><rect x="8" y="4" width="3" height="8"/><rect x="13" y="2" width="3" height="10"/></svg><span class="era-count" id="ec-industrial"></span></div><div class="era-name">Indust.</div></button>
+    </div>
+  </div>
+    <div class="sidebar-filters">
+      <input
+        id="search-inp"
+        class="search-input"
+        type="text"
+        placeholder="🔍  Hledat lokality, k.ú., typ…"
+        oninput="rl()"
+      />
+      <div class="filter-row">
+        <select class="native-select" id="ftyp" onchange="rl()">
+          <option value="">Všechny typy</option>
+        </select>
+        <select class="native-select" id="fkat" onchange="rl()">
+          <option value="">Všechna k.ú.</option>
+        </select>
+      </div>
+    </div>
+    <div class="count-bar"><span>Zobrazeno:&nbsp;<b id="cnt">0</b>&nbsp;z 113 lokalit</span></div>
+    <div id="list"></div>
+  </div>
+
+  <!-- Map -->
+  <div id="mapwrap">
+    <div id="map"></div>
+    <div id="layer-switcher">
+      <button class="layer-btn active" data-layer="osm" onclick="switchLayer('osm')" title="OpenStreetMap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/></svg>
+        <span>Mapa</span>
+      </button>
+      <button class="layer-btn" data-layer="satellite" onclick="switchLayer('satellite')" title="Satelitní snímek">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 12 2 2m10 10 10-10M12 12v10M12 12H2"/><circle cx="19" cy="5" r="3"/><path d="m17 7 4-4"/></svg>
+        <span>Satelit</span>
+      </button>
+      <button class="layer-btn" data-layer="topo" onclick="switchLayer('topo')" title="Topografická mapa (Esri)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l4-8 4 5 3-3 4 6H3z"/><path d="M3 21h18"/></svg>
+        <span>Topo mapa</span>
+      </button>
+    </div>
+
+    <!-- Detail panel -->
+    <div id="detail-panel">
+      <div class="detail-header">
+        <div id="dp-icon" style="width:28px;height:28px;border-radius:5px;display:flex;align-items:center;justify-content:center;padding:4px;box-sizing:border-box;flex-shrink:0;background:rgba(255,255,255,.15);color:#fff"></div>
+        <span class="detail-title" id="dp-title">Detail lokality</span>
+        <button class="detail-close" onclick="closeDetail()" title="Zavřít">✕</button>
+      </div>
+      <div class="detail-body">
+        <div class="detail-section" id="dp-left"></div>
+        <div class="detail-section" id="dp-right"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SITES = [{"id": "C-N9000116", "nazev": "Hodovíz - ohrazení 1 - Vyšohrádek", "typ": "pozůstatek ohrazení", "katastr": "Hodoviz", "okres": "Plzeň-sever", "coords": [49.958071, 13.285793], "periods": ["pravěk"], "zachov": "nadzemní relikty", "popis": "Poloha Vyšohrádek. Drobná skalnatá ostrožna vytvořená potokem Chladná a jejím pravostranným přítokem. Kamenný val z východní a částečně z jižní strany.", "poznamka": ""}, {"id": "C-N9008069", "nazev": "Habrová (u Dolan) - zaniklá vesnice", "typ": "pozůstatek sídliště", "katastr": "Dolany u Plzně", "okres": "Plzeň-sever", "coords": [49.81281, 13.488751], "periods": ["vrcholný středověk–novověk"], "zachov": "zaniklá lokalita", "popis": "Stopy ZSO Habrová připomínané v 15 stol. Lokalita se nachází 1000 m severovýchodně od dnešní vsi Habrové, vzniklé na sklonku 18. stol. rozdělěním panského dvora.", "poznamka": "Záznam vznikl na základě revidovaných údajů Státního archeologického archeologického seznamu."}, {"id": "C-N9008061", "nazev": "Sechutice (u Výrova) - zaniklá vesnice", "typ": "pozůstatek sídliště", "katastr": "Výrov u Kralovic", "okres": "Plzeň-sever", "coords": [49.968092, 13.444998], "periods": ["přechod raný/vrcholný středověk", "vrcholný–pozdní středověk", "novověk–industriální období"], "zachov": "zaniklá lokalita", "popis": "ZSO Horní Sechutice je zmiňována k r.1146, falzum 12. stol., daruje ves Vladislav II. klášteru v Plasích ( CDB I, 409). Kníže Bedřich potvrzuje klášteru v Plasích držení vsi r. 1183 ( CDB I, 270).", "poznamka": "Záznam vznikl na základě revidovaných údajů Státního archeologického archeologického seznamu."}, {"id": "C-N9008060", "nazev": "Obořice (u Obory) - zaniklá vesnice", "typ": "pozůstatek sídliště", "katastr": "Obora u Kaznějova", "okres": "Plzeň-sever", "coords": [49.897631, 13.438248], "periods": ["pozdní středověk", "novověk 1"], "zachov": "zaniklá lokalita", "popis": "Byla patrně založena plaským klášterem před r. 1250, kdy je poprvé připomínána, poslední zmínky o vsi jsou z počátku 15. stol. zřejmě zanikla po husitských válkách. V Kaceřovském urbáři z r. 1558 je uvedeno, že lidé z pusté vsi Obořice se přestěhovali do Obory.", "poznamka": "Záznam vznikl na základě revidovaných údajů Státního archeologického archeologického seznamu."}, {"id": "C-N9008059", "nazev": "Tis (u Lítého; Tisá) - zaniklá vesnice", "typ": "pozůstatek sídliště", "katastr": "Líté", "okres": "Plzeň-sever", "coords": [49.908744, 13.219684], "periods": ["vrcholný–pozdní středověk"], "zachov": "zaniklá lokalita", "popis": "", "poznamka": "Záznam vznikl na základě revidovaných údajů Státního archeologického archeologického seznamu."}, {"id": "C-N9008058", "nazev": "Roudná (u Sence) - zaniklá vesnice", "typ": "pozůstatek sídliště", "katastr": "Senec u Plzně", "okres": "Plzeň-sever", "coords": [49.779871, 13.417117], "periods": ["vrcholný středověk", "pozdní středověk", "novověk 1", "vrcholný středověk–novověk"], "zachov": "zaniklá lokalita", "popis": "Zaniklá středověké vesnice a tvrz Roudná. Ves prvně zmíněná r. 1321.", "poznamka": "Záznam vznikl na základě revidovaných údajů Státního archeologického archeologického seznamu."}, {"id": "C-N9008057", "nazev": "Kamenice (u Hromnice) - zaniklá vesnice", "typ": "pozůstatek sídliště", "katastr": "Hromnice", "okres": "Plzeň-sever", "coords": [49.854579, 13.391218], "periods": ["vrcholný středověk–novověk"], "zachov": "nadzemní relikty", "popis": "", "poznamka": "Záznam vznikl na základě revidovaných údajů Státního archeologického archeologického seznamu."}, {"id": "C-N9008055", "nazev": "Dolany (u Hlinců) - zaniklá vesnice", "typ": "pozůstatek sídliště", "katastr": "Hlince", "okres": "Plzeň-sever", "coords": [49.947197, 13.654901], "periods": ["vrcholný–pozdní středověk", "novověk"], "zachov": "zaniklá lokalita", "popis": "Dolany jsou poprvé uváděny v r. 1358 patřící drobné šlechtě, 1481 uváděny již jako pusté. Kostel uváděn jako románský založen patrně v pol. 13 stol., později zbarokisován, ve 20 stol. zpustlý, dnes ruina obvodových zdí.", "poznamka": "Záznam vznikl na základě revidovaných údajů Státního archeologického archeologického seznamu."}, {"id": "C-N9008049", "nazev": "Šebíkov (u Trojan) - zaniklá vesnice", "typ": "pozůstatek sídliště", "katastr": "Trojany u Mladotic", "okres": "Plzeň-sever", "coords": [49.970852, 13.405146], "periods": ["vrcholný středověk"], "zachov": "zaniklá lokalita", "popis": "Tvrz je připomínána již k r. 1250, v 16.stol. je uváděna již jako pustá. V její blízkosti existovala středověká osada. V terénu je dobře patrna, leží na okraji lesa nad rybníčkem vpravo od cesty, lemovaná hlubokým příkopem a valem. V terénu dobře patrné okrouhlé tvrziště se zbytkem obdélné podsklepené budovy při okraji. Příkop zvenčí obíhal val. V předpolí tvrze jsou zachovány pozůstatky velké obdélné stavby a několika dalších objektů, příslušících patrně dvorci či vsi (oboje je doloženo v písemných pramenech).", "poznamka": "Záznam vznikl na základě revidovaných údajů Státního archeologického archeologického seznamu."}, {"id": "C-N9008048", "nazev": "Čečín (u Babiny) - zaniklá vesnice", "typ": "pozůstatek sídliště", "katastr": "Babina", "okres": "Plzeň-sever", "coords": [49.923128, 13.458383], "periods": ["přechod raný/vrcholný středověk", "vrcholný středověk", "pozdní středověk", "vrcholný–pozdní středověk"], "zachov": "nadzemní relikty", "popis": "ZSO Čečín leží na JZ od vsi Kočín v Čečínském polesí v údolíčku podél cesty před čečinskou hájovnou. Nálezy ze ZSO Čečín jsou datovány do 11.-15. stol. a dostatečně lokalizují zaniklou ves i dvůr.", "poznamka": "Záznam vznikl na základě revidovaných údajů Státního archeologického archeologického seznamu."}, {"id": "C-N9007856", "nazev": "Ježlový (u Trnové; Vísky) - zaniklá vesnice", "typ": "pozůstatek sídliště", "katastr": "Trnová u Plzně", "okres": "Plzeň-sever", "coords": [49.857729, 13.335827], "periods": ["pozdní středověk", "novověk 2", "industriální období 1", "industriální období"], "zachov": "lokalita pod zástavbou", "popis": "Zaniklá ves Ježlový s tvrzí stávala na místě dnešní osady Vísky (část obce Trnová). Připomíná se poprvé roku 1386. V r.1419 vypálili ves Husité. Tvrz se uvádí poprvé v pramenech r.1586 jako pustá. V roce 1660 se pustá ves Ježlový, nyní zvána Vísky, dostala ke Krašovicům. V l.1680-90 zde vznikl poplužní dvůr, kravín, ovčín a myslivna. V r.1804 koupil statek Krašovice Josef Rab a postavil zde pozdně barokní zámek. Před zámkem byl postaven hospodářský dvůr.", "poznamka": "Záznam vznikl na základě revidovaných údajů Státního archeologického archeologického seznamu."}, {"id": "C-N9007855", "nazev": "Bříští (Slatiny) - zaniklá vesnice", "typ": "pozůstatek sídliště", "katastr": "Slatina u Chříče", "okres": "Plzeň-sever", "coords": [49.983058, 13.613722], "periods": ["vrcholný středověk–novověk", "novověk"], "zachov": "lokalita pod zástavbou", "popis": "Jedná se o zaniklou středověkou osadu uváděnou písemně k r. 1585, stála tu vesnice s tvrzí. Zanikla za třicetileté války , později byl vystavěn na tomto místě dvůr, který přetrval až do 20. stol. - Procházka 1996", "poznamka": "Záznam vznikl na základě revidovaných údajů Státního archeologického archeologického seznamu."}, {"id": "C-N9007810", "nazev": "Harabasko (Hněvnic) - zaniklá vesnice", "typ": "pozůstatek sídliště", "katastr": "Hněvnice", "okres": "Plzeň-sever", "coords": [49.743391, 13.116848], "periods": ["vrcholný–pozdní středověk"], "zachov": "nadzemní relikty", "popis": "1. písemná zmínka o vsi 1350, k r. 1543 se uvádí již jako pustá.", "poznamka": "Záznam vznikl na základě revidovaných údajů Státního archeologického archeologického seznamu."}, {"id": "C-N9007801", "nazev": "Újezd (u Trojan) - zaniklá vesnice", "typ": "pozůstatek sídliště", "katastr": "Trojany u Mladotic", "okres": "Plzeň-sever", "coords": [49.976444, 13.428447], "periods": ["přechod raný/vrcholný středověk"], "zachov": "zaniklá lokalita", "popis": "ZSO Újezd - ves je zakreslena jako pustá v rukopisné mapě přiložené k Vogtově kronice \"Tillia Plassensis\". První zmínka : r.1230 odkázal Roman z Týnce klášteru v Plasích pustou ves Újezd (CDB II, 351).", "poznamka": "Záznam vznikl na základě revidovaných údajů Státního archeologického archeologického seznamu."}, {"id": "C-N9007800", "nazev": "Újezd (u Kaznějova; Újezdec) - zaniklá vesnice", "typ": "pozůstatek sídliště", "katastr": "Kaznějov", "okres": "Plzeň-sever", "coords": [49.881999, 13.355108], "periods": ["vrcholný středověk", "pozdní středověk"], "zachov": "zaniklá lokalita", "popis": "ZSO Újezd - r. 1224 se zavázal Ratmír ze Skviřína klášteru plaskému, že ves po jeho smrti připadne klášteru ( CDB II, 248), král Václav kolem r. 1232 potvrdil klášteru držení vsi ( RB I, 370 ). Je také nazýván Újezdcem, připomínán ještě 1462 před pol.16 stol. již pustý. V minulém stol. se přišlo u hájovny na základy staveb a údajně zde byly nalezeny i mince. Stavby byly ale rozorávány i jinde, zdá se, že dvůr a ZSO Újezd se nenachází ve stejné lokalitě u hájovny.", "poznamka": "Záznam vznikl na základě revidovaných údajů Státního archeologického archeologického seznamu."}, {"id": "C-N9007692", "nazev": "Vrtbo (u Horní Bělé) - výrobní areál 1 - dvůr Vrtba", "typ": "pozůstatek výroby", "katastr": "Horní Bělá", "okres": "Plzeň-sever", "coords": [49.882603, 13.249712], "periods": ["vrcholný středověk–novověk"], "zachov": "", "popis": "", "poznamka": ""}, {"id": "C-N9007675", "nazev": "Vlkošov - výrobní areál 1 - dvůr", "typ": "pozůstatek výroby", "katastr": "Vlkošov", "okres": "Plzeň-sever", "coords": [50.012187, 13.112818], "periods": ["vrcholný středověk–novověk"], "zachov": "", "popis": "", "poznamka": ""}, {"id": "C-N9007629", "nazev": "Újezd nade Mží - výrobní areál 1 - dvůr", "typ": "pozůstatek výroby", "katastr": "Újezd nade Mží", "okres": "Plzeň-sever", "coords": [49.788038, 13.194564], "periods": ["vrcholný středověk–novověk"], "zachov": "", "popis": "", "poznamka": ""}, {"id": "C-N9007578", "nazev": "Šebíkov (u Trojan) - výrobní areál 1 - dvůr", "typ": "pozůstatek výroby", "katastr": "Trojany u Mladotic", "okres": "Plzeň-sever", "coords": [49.971128, 13.405196], "periods": ["vrcholný středověk–novověk"], "zachov": "", "popis": "", "poznamka": ""}, {"id": "C-N9007436", "nazev": "Podmokly (u Úněšova) - výrobní areál 1 - dvůr", "typ": "pozůstatek výroby", "katastr": "Podmokly u Úněšova", "okres": "Plzeň-sever", "coords": [49.8686, 13.178689], "periods": ["vrcholný středověk–novověk"], "zachov": "", "popis": "", "poznamka": ""}, {"id": "C-N9007361", "nazev": "Nekmíř - výrobní areál 1 - dvůr", "typ": "pozůstatek výroby", "katastr": "Nekmíř", "okres": "Plzeň-sever", "coords": [49.857482, 13.256276], "periods": ["vrcholný středověk–novověk"], "zachov": "", "popis": "", "poznamka": ""}, {"id": "C-N9007307", "nazev": "Luhov (u Líšťan) - výrobní areál 1 - dvůr", "typ": "pozůstatek výroby", "katastr": "Luhov u Líšťan", "okres": "Plzeň-sever", "coords": [49.813545, 13.143373], "periods": ["vrcholný středověk–novověk"], "zachov": "", "popis": "", "poznamka": ""}, {"id": "C-N9007294", "nazev": "Líšťany - výrobní areál 1 - dvůr", "typ": "pozůstatek výroby", "katastr": "Líšťany", "okres": "Plzeň-sever", "coords": [49.829039, 13.183295], "periods": ["vrcholný středověk–novověk"], "zachov": "", "popis": "", "poznamka": ""}, {"id": "C-N9007292", "nazev": "Lipno (u Hunčic) - výrobní areál 1 - dvůr", "typ": "pozůstatek výroby", "katastr": "Lipno u Hunčic", "okres": "Plzeň-sever", "coords": [49.809438, 13.171561], "periods": ["vrcholný středověk–novověk"], "zachov": "", "popis": "", "poznamka": ""}, {"id": "C-N9006995", "nazev": "Úlice - výrobní areál 1 - dvůr", "typ": "pozůstatek výroby", "katastr": "Úlice", "okres": "Plzeň-sever", "coords": [49.759297, 13.149128], "periods": ["vrcholný středověk–novověk"], "zachov": "historická budova/komplex", "popis": "", "poznamka": ""}, {"id": "C-N9006960", "nazev": "Manětín - kultovní areál 2 - kostel sv. Jana Křtitele", "typ": "pozůstatek kultu", "katastr": "Manětín", "okres": "Plzeň-sever", "coords": [49.991641, 13.231136], "periods": ["vrcholný středověk–novověk"], "zachov": "historická budova/komplex", "popis": "", "poznamka": ""}, {"id": "C-N9006941", "nazev": "Kaceřov - výrobní areál 1 - dvůr", "typ": "pozůstatek výroby", "katastr": "Kaceřov", "okres": "Plzeň-sever", "coords": [49.872859, 13.512018], "periods": ["vrcholný středověk–novověk"], "zachov": "historická budova/komplex", "popis": "", "poznamka": ""}, {"id": "C-N9006837", "nazev": "Lednice - výrobní areál 1 - dvůr", "typ": "pozůstatek výroby", "katastr": "Lednice", "okres": "Plzeň-sever", "coords": [49.943572, 13.513015], "periods": ["novověk"], "zachov": "historická budova/komplex", "popis": "", "poznamka": ""}, {"id": "C-N9006816", "nazev": "Plasy - výrobní areál 1 - dvůr", "typ": "pozůstatek výroby", "katastr": "Plasy", "okres": "Plzeň-sever", "coords": [49.937404, 13.389492], "periods": ["vrcholný středověk–novověk"], "zachov": "historická budova/komplex", "popis": "", "poznamka": ""}, {"id": "C-N9006770", "nazev": "Plešnice - výrobní areál 1 - dvůr", "typ": "pozůstatek výroby", "katastr": "Plešnice", "okres": "Plzeň-sever", "coords": [49.773126, 13.17855], "periods": ["novověk"], "zachov": "historická budova/komplex", "popis": "", "poznamka": ""}, {"id": "C-N9006740", "nazev": "Žebnice - kultovní areál 1 - kostel sv. Jakuba Staršího", "typ": "pozůstatek kultu", "katastr": "Žebnice", "okres": "Plzeň-sever", "coords": [49.956201, 13.391405], "periods": ["středověk–novověk"], "zachov": "historická budova/komplex", "popis": "", "poznamka": ""}, {"id": "C-N9006662", "nazev": "Rabštejn nad Střelou - kultovní areál 1 - klášter", "typ": "pozůstatek kultu", "katastr": "Rabštejn nad Střelou", "okres": "Plzeň-sever", "coords": [50.041975, 13.289711], "periods": ["novověk"], "zachov": "historická budova/komplex", "popis": "", "poznamka": ""}, {"id": "C-N9006649", "nazev": "Plasy - kultovní areál 2 - kostel sv. Václava", "typ": "pozůstatek kultu", "katastr": "Plasy", "okres": "Plzeň-sever", "coords": [49.934788, 13.393388], "periods": ["novověk", "vrcholný středověk–novověk"], "zachov": "historická budova/komplex", "popis": "", "poznamka": ""}, {"id": "C-N9006617", "nazev": "Manětín - kultovní areál 1 - kostel sv. Barbory", "typ": "pozůstatek kultu", "katastr": "Manětín", "okres": "Plzeň-sever", "coords": [49.99207, 13.242631], "periods": ["novověk"], "zachov": "historická budova/komplex", "popis": "", "poznamka": ""}, {"id": "C-N9006597", "nazev": "Kralovice (u Rakovníka) - kultovní areál 1 - kostel sv. Petra a Pavla", "typ": "pozůstatek kultu", "katastr": "Kralovice u Rakovníka", "okres": "Plzeň-sever", "coords": [49.979594, 13.482996], "periods": ["středověk–novověk"], "zachov": "historická budova/komplex", "popis": "", "poznamka": ""}, {"id": "C-N9006595", "nazev": "Kožlany - kultovní areál 1 - kostel sv. Vavřince", "typ": "pozůstatek kultu", "katastr": "Kožlany", "okres": "Plzeň-sever", "coords": [49.993947, 13.547166], "periods": ["středověk–novověk"], "zachov": "historická budova/komplex", "popis": "", "poznamka": ""}, {"id": "C-N9006569", "nazev": "Druztová - kultovní areál 1 - kostel sv. Máří Magdalény", "typ": "pozůstatek kultu", "katastr": "Druztová", "okres": "Plzeň-sever", "coords": [49.795512, 13.454914], "periods": ["středověk–novověk"], "zachov": "historická budova/komplex", "popis": "", "poznamka": ""}, {"id": "C-N9006540", "nazev": "Výrov (u Kralovic) - výrobní areál 1 - dvůr Sechutice (Hadačka)", "typ": "pozůstatek výroby", "katastr": "Výrov u Kralovic", "okres": "Plzeň-sever", "coords": [49.966977, 13.444368], "periods": ["novověk"], "zachov": "historická budova/komplex", "popis": "", "poznamka": ""}, {"id": "C-N9006488", "nazev": "Plasy - kultovní areál 1 - klášter Plasy", "typ": "pozůstatek kultu", "katastr": "Plasy", "okres": "Plzeň-sever", "coords": [49.933961, 13.38957], "periods": ["středověk–novověk", "novověk"], "zachov": "historická budova/komplex", "popis": "", "poznamka": ""}, {"id": "C-N9006487", "nazev": "Umíř - zaniklá vesnice", "typ": "pozůstatek sídliště", "katastr": "Trhomné", "okres": "Plzeň-sever", "coords": [49.936148, 13.136559], "periods": ["vrcholný–pozdní středověk"], "zachov": "nadzemní relikty", "popis": "", "poznamka": ""}, {"id": "C-N9006462", "nazev": "Kralovice (u Rakovníka) - kultovní areál 2 - probošství Mariánská Týnice", "typ": "pozůstatek kultu", "katastr": "Kralovice u Rakovníka", "okres": "Plzeň-sever", "coords": [49.985501, 13.46261], "periods": ["středověk–novověk"], "zachov": "historická budova/komplex", "popis": "", "poznamka": ""}, {"id": "C-N9006436", "nazev": "Hradecko - výrobní areál 1 - dvůr Hubenov", "typ": "pozůstatek výroby", "katastr": "Hradecko", "okres": "Plzeň-sever", "coords": [50.004619, 13.479929], "periods": ["novověk"], "zachov": "historická budova/komplex", "popis": "", "poznamka": ""}, {"id": "C-N9006389", "nazev": "Dolany (u Hlinců) - kultovní areál 1 - kostel sv. Petra a Pavla", "typ": "pozůstatek kultu", "katastr": "Hlince", "okres": "Plzeň-sever", "coords": [49.947956, 13.655792], "periods": ["vrcholný středověk–novověk", "středověk"], "zachov": "historická budova/komplex", "popis": "", "poznamka": ""}, {"id": "C-N9006333", "nazev": "Dolany (u Plzně) - vojenský areál 1", "typ": "pozůstatek vojenství", "katastr": "Dolany u Plzně", "okres": "Plzeň-sever", "coords": [49.796175, 13.457436], "periods": ["vrcholný středověk–novověk"], "zachov": "nadzemní relikty", "popis": "Snad předsunuté opevnění hradu Věžka.", "poznamka": ""}, {"id": "C-N9006331", "nazev": "Bohy - vojenský areál 1", "typ": "pozůstatek vojenství", "katastr": "Bohy", "okres": "Plzeň-sever", "coords": [49.950966, 13.589086], "periods": ["vrcholný středověk–novověk"], "zachov": "nadzemní relikty", "popis": "Předsunuté opevnění hradu Krašov.", "poznamka": ""}, {"id": "C-N9006092", "nazev": "Březín - výšinné sídliště 1 - Pekelný vrch (Pekelec)", "typ": "pozůstatek sídliště", "katastr": "Březín", "okres": "Plzeň-sever", "coords": [49.953569, 13.121853], "periods": ["chamská kultura", "raný středověk 4", "vrcholný středověk"], "zachov": "zaniklá lokalita", "popis": "Pekelný vrch (pův. 602,4 m n. m.; dnes max. 560,9 m n. m.), dříve téz Pekelec. Osamocený vrch na Z okraji rozsáhlejšího návrší, obtékaný Starým potokem, z J strany pak dotvářený další bezejmennou vodotečí. Identifikovány nálezy pravěké; raně středověké hradiště spíše domnělé; ve vrcholném středověku na místě hrad. Lokalita prakticky zcela zničena těžbou čediče.", "poznamka": ""}, {"id": "C-N9006036", "nazev": "Hlince - ohrazení 1", "typ": "pozůstatek ohrazení", "katastr": "Hlince", "okres": "Plzeň-sever", "coords": [49.94688, 13.619663], "periods": ["datace neurčena"], "zachov": "zaniklá lokalita", "popis": "Poloha Za Humny. Výrazná ukloněná ostrožna nad řekou Berounkou, Z od obce Hlince. Magnetometrickým průzkumem zjištěno vymezení polohy dvěma pásy příkopů. Datovací materiál zatím schází.", "poznamka": ""}, {"id": "C-N9005985", "nazev": "Polínka - výšinné sídliště 1 - Polínský vrch (Kazatelna)", "typ": "pozůstatek sídliště", "katastr": "Polínka", "okres": "Plzeň-sever", "coords": [49.93518, 13.040456], "periods": ["chamská kultura"], "zachov": "zaniklá lokalita", "popis": "Polínský vrch (684,4 m n. m., mimo vrchol), poloha Kazatelna (západní výběžek hory). Výrazná, osamocená tabulová hora nad pláněni při Dolském a Polínském potoku. Zjišťovací sondáží zjištěno pravěké osídlení; bez stop opevnění", "poznamka": "Areál je dělen hranicí katastru mezi k. ú. Polínka a Krsy."}, {"id": "C-N9005984", "nazev": "Žernovník (u Dolního Jamného) - výšinné sídliště 1", "typ": "pozůstatek sídliště", "katastr": "Žernovník u Dolního Jamného", "okres": "Plzeň-sever", "coords": [49.968545, 13.006125], "periods": ["eneolit"], "zachov": "zaniklá lokalita", "popis": "Bezejmenná, poměrně úzká ostrožna (závěrečná plošina s vrcholem 595,8 m n. m.) nad soutokem Úterského potoka a bezejmenného levostraného přítoku (1,5 km JZ od Žernovníku; 3,1 km S od Úterý). Prospekční sběr a sondáž doložily eneolitické osídlení; zachycena byla kulturní vrstva.", "poznamka": ""}, {"id": "C-N9005972", "nazev": "Vlkošov - výšinné sídliště 1", "typ": "pozůstatek sídliště", "katastr": "Vlkošov", "okres": "Plzeň-sever", "coords": [50.006222, 13.123512], "periods": ["eneolit", "doba halštatská"], "zachov": "zaniklá lokalita", "popis": "Ostrožna (nejvyšší bod 551 m n. m.) cca 900 m JV od Vlkošova (proti poloze U Hnátků), formovaná Manětínským potokem. Mikrosondáž doložila nálezy eneolitické a nálezy z doby halštatské.", "poznamka": ""}, {"id": "C-N9005964", "nazev": "Újezd nade Mží - výšinné sídliště 1", "typ": "pozůstatek sídliště", "katastr": "Újezd nade Mží", "okres": "Plzeň-sever", "coords": [49.78239, 13.192985], "periods": ["chamská kultura"], "zachov": "zaniklá lokalita", "popis": "Ostrožna nad Zámeckým mlýnem; vymezena Mží a jejím bezejmenným levobřežním přítokem. Opevnění nedoloženo.", "poznamka": ""}, {"id": "C-N9005932", "nazev": "Skupeč - výšinné sídliště 1 - Vinice", "typ": "pozůstatek sídliště", "katastr": "Skupeč", "okres": "Plzeň-sever", "coords": [49.866735, 13.102857], "periods": ["chamská kultura", "kultura kulovitých amfor", "HaD–LtA"], "zachov": "zaniklá lokalita", "popis": "Vrch Vinice (588,9 m n. m.). Osamělý vrchol JZ od obce, narušen starším lomem. Polykulturní lokalita, bez stop opevnění.", "poznamka": ""}, {"id": "C-N9005897", "nazev": "Krsy - ohrazení 1 - Liščí vrch", "typ": "pozůstatek ohrazení", "katastr": "Krsy", "okres": "Plzeň-sever", "coords": [49.929472, 13.023587], "periods": [], "zachov": "zaniklá lokalita", "popis": "Poloha Liščí stráň, parc. č. 606/1. Drobná ostrožna nad soutokem Dolského potoka a bezejmenné vodoteče směřující od Olešovic. Bez archeologických dokladů.", "poznamka": ""}, {"id": "C-N9005893", "nazev": "Úlice - ohrazení 1 - Na hradišti (Hradištko)", "typ": "pozůstatek ohrazení", "katastr": "Úlice", "okres": "Plzeň-sever", "coords": [49.770049, 13.123376], "periods": ["doba halštatská–laténská"], "zachov": "zaniklá lokalita", "popis": "Poloha Na Hradišti, někdy též Hradištko. Z okraj dlouhého návrší s vrcholem Burda (480,6 m n. m.), dnes převážně zničený kamenolomem. Domnělé hradiště, nelze vyloučit ani středověké stáří.", "poznamka": ""}, {"id": "C-N9005890", "nazev": "Plasy - výšinné sídliště 1 - Amerika", "typ": "pozůstatek sídliště", "katastr": "Plasy", "okres": "Plzeň-sever", "coords": [49.930041, 13.385337], "periods": ["chamská kultura"], "zachov": "zaniklá lokalita", "popis": "Poloha Amerika. Skalnatý výběžek z návrší nad řekou Střelou; dnes jej obchází serpentina silnice I/17 (ul. Plzeňská). Lokalita zasažená kamenolomem a zářezem železniční trati. Drobné nálezy eneolitické.", "poznamka": ""}, {"id": "C-N9005872", "nazev": "Obora (u Kaznějova) - výšinné sídliště 1", "typ": "pozůstatek sídliště", "katastr": "Obora u Kaznějova", "okres": "Plzeň-sever", "coords": [49.89859, 13.434194], "periods": ["chamská kultura", "doba halštatská"], "zachov": "zaniklá lokalita", "popis": "Ostrožna u hájenky Vobořice (424 m n. m.). Ostrožna SZ od hájovny Vobořice, formovaná potokem Od Studánek (popř. U Studánek). Při povrchovém průzkumu při vrcholu a ve splachu pod J svahem zachyceny zlomky keramiky eneolitické (chamská kultura). Starší sondáž doložila rovněž materiál pozdní doby halštatské.", "poznamka": ""}, {"id": "C-N9005867", "nazev": "Nebřeziny - výšinné sídliště 1", "typ": "pozůstatek sídliště", "katastr": "Nebřeziny", "okres": "Plzeň-sever", "coords": [49.915696, 13.385751], "periods": ["eneolit"], "zachov": "zaniklá lokalita", "popis": "Poloha Panholec. Ostrožna nad Rybnickým potokem na parc. č. 150/2, JZ od kóty 413", "poznamka": ""}, {"id": "C-N9005858", "nazev": "Mezí - výšinné sídliště 1 - Špičák", "typ": "pozůstatek sídliště", "katastr": "Mezí", "okres": "Plzeň-sever", "coords": [49.998541, 13.153361], "periods": ["eneolit"], "zachov": "zaniklá lokalita", "popis": "Vrch Špičák (596,7 m n. m.). Osamocený vrchol při Krašovském potoce JZ od obce.", "poznamka": ""}, {"id": "C-N9005850", "nazev": "Lomnička (u Plas) - výšinné sídliště 1", "typ": "pozůstatek sídliště", "katastr": "Lomnička u Plas", "okres": "Plzeň-sever", "coords": [49.928035, 13.313844], "periods": ["chamská kultura"], "zachov": "zaniklá lokalita", "popis": "Parc. č. 301/4. Ostrožna vytvořená Draženským potokem, oddělená sedlem a úzkou šíjí.", "poznamka": ""}, {"id": "C-N9005837", "nazev": "Krukanice - výšinné sídliště 1 - Polesí", "typ": "pozůstatek sídliště", "katastr": "Krukanice", "okres": "Plzeň-sever", "coords": [49.845419, 13.063103], "periods": ["chamská kultura"], "zachov": "zaniklá lokalita", "popis": "Poloha Polesí. Úzký skalnatý výběžek nad Křelovickým potokem (J od polohy Mezi lesy).", "poznamka": ""}, {"id": "C-N9005777", "nazev": "Osojno (u Draženě) - výšinné sídliště 2", "typ": "pozůstatek sídliště", "katastr": "Dražeň", "okres": "Plzeň-sever", "coords": [49.943251, 13.280347], "periods": ["eneolit"], "zachov": "zaniklá lokalita", "popis": "Podlouhlý skalní hřbet (559,5 m n. m.), Z od dvora v místní části Osojno.", "poznamka": ""}, {"id": "C-N9005776", "nazev": "Osojno (u Draženě) - výšinné sídliště 1 - Račala", "typ": "pozůstatek sídliště", "katastr": "Dražeň", "okres": "Plzeň-sever", "coords": [49.940152, 13.287969], "periods": ["pravěk"], "zachov": "zaniklá lokalita", "popis": "Poloha Račala. Drobnější ostrožna nad údolím Osojenského potoka; cca 500 m JV od místní části Osojno.", "poznamka": ""}, {"id": "C-N9005774", "nazev": "Doubravice (u Nečtin) - výšinné sídliště 1 - Doubravický vrch", "typ": "pozůstatek sídliště", "katastr": "Doubravice u Nečtin", "okres": "Plzeň-sever", "coords": [49.994972, 13.162267], "periods": ["neolit", "chamská kultura"], "zachov": "zaniklá lokalita", "popis": "Doubravický vrch (658,1 m n. m.). Výrazná stolová hora jako vrchol návrší mezi Manětínským potokem a Starým potokem. Na vrcholu zachyceny nálezy pravěké; bez stop opevnění.", "poznamka": ""}, {"id": "C-N9005766", "nazev": "Čivice - výšinné sídliště 1", "typ": "pozůstatek sídliště", "katastr": "Čivice", "okres": "Plzeň-sever", "coords": [49.884225, 13.51269], "periods": ["střední doba bronzová", "raný středověk 4", "vrcholný středověk"], "zachov": "lokalita pod zástavbou", "popis": "Intravilán obce. Úzká svažitá ostrožna s kostelem Nejsvětější Trojice, vymezená ze S a z J dvěma bezejmennými vodotečemi, pramenícími v obci. Terén silně poškozen výstavbou.", "poznamka": ""}, {"id": "C-N9005750", "nazev": "Bdeněves - výšinné sídliště 1", "typ": "pozůstatek sídliště", "katastr": "Bdeněves", "okres": "Plzeň-sever", "coords": [49.769286, 13.218095], "periods": ["eneolit", "doba halštatská"], "zachov": "zaniklá lokalita", "popis": "Ostrožna nad řekou Mží, SZ od křížení hlavní železniční trati č. 178 (Plzeň - Cheb) a silnice II/605. Chatová osada. Četné sídlištní nálezy eneolitické a halštatské.", "poznamka": ""}, {"id": "C-N9005709", "nazev": "Kralovice (u Rakovníka) - sídlo 2", "typ": "pozůstatek sídla elity", "katastr": "Kralovice u Rakovníka", "okres": "Plzeň-sever", "coords": null, "periods": ["novověk"], "zachov": "", "popis": "Označováno jako: zámek. Pravděpodobnost existence: 100 %.", "poznamka": ""}, {"id": "C-N9005660", "nazev": "Plasy - sídlo 1 - Rinthof", "typ": "pozůstatek sídla elity", "katastr": "Plasy", "okres": "Plzeň-sever", "coords": [49.937312, 13.38934], "periods": ["pozdní středověk", "raný středověk 4", "vrcholný středověk"], "zachov": "lokalita pod zástavbou", "popis": "Datace sídla: 12.st. 2.čt. - 14.st. 2.čt. (vznik i zánik nejistý). Stav terén: pouze stavba. Stav zástavba: v mladší stavbě - části. Označováno jako: dvorec, grangie. Pravděpodobnost existence: 100 %. Důvod zániku: změna účelu. Věžová stavba, datovaná do počátku 14. stol.  Držba sídla: 12.st. 2.čt. - 14.st. 2.čt. (1144–): církev - řády [cisterciáci Plasy] 12.st. 2.čt. (–1144): Přemyslovci", "poznamka": ""}, {"id": "C-N9005659", "nazev": "Kaznějov - sídlo 1", "typ": "pozůstatek sídla elity", "katastr": "Kaznějov", "okres": "Plzeň-sever", "coords": [49.890684, 13.382833], "periods": ["novověk 1", "pozdní středověk", "vrcholný středověk"], "zachov": "zaniklá lokalita", "popis": "Datace sídla: 13.st. 2.čt. - 17.st. 2.čt. (vznik nejistý). Stav terén: zaniklé. Stav zástavba: zaniklé. Označováno jako: grangie, rychta. Pravděpodobnost existence: 100 %. Důvod zániku: zničení - dobytí.  Držba sídla: 13.st. 2.čt. - 14.st. 2.čt. (1250–1346): církev - řády [cisterciáci Plasy] 14.st. 2.čt. (1346–1350): x [Petr (1346-1350)] 14.st. 2.čt. (1350–): z Volfštejna [Protiva (1350)] 15.st. 1.čt. (1418–): z Dubjan [Hrdoň (1418-1420)] 17.st. 1.čt. (1623–): Bržinští z Poksdorfu [Augustin (1623)]", "poznamka": "Lokalizace sídla je nejistá (důvěryhodnost: 30 %)."}, {"id": "C-N9005655", "nazev": "Manětín - sídlo 2", "typ": "pozůstatek sídla elity", "katastr": "Manětín", "okres": "Plzeň-sever", "coords": [49.991708, 13.233154], "periods": ["novověk 1", "novověk 2", "industriální období 2", "industriální období 1"], "zachov": "historická budova/komplex", "popis": "Datace sídla: 16.st. 3.čt. - 20.st. 1.čt. Stav terén: pouze stavba. Stav zástavba: stojící - výrazně přestavěné. Označováno jako: zámek. Pravděpodobnost existence: 100 %.  Držba sídla: 16.st. 3.čt. (1560–): Hrobčičtí z Hrobčic [Jeroným (1560)] 17.st. 1.čt. - 20.st. 1.čt. (1622–1918): Lažanští z Bukové [Ester (1622); Václav Josef (1712-1715); Maxmilián Václav (1715]", "poznamka": ""}, {"id": "C-N9005604", "nazev": "Luhov (u Líšťan) - sídlo 2", "typ": "pozůstatek sídla elity", "katastr": "Luhov u Líšťan", "okres": "Plzeň-sever", "coords": [49.813379, 13.144619], "periods": ["novověk"], "zachov": "historická budova/komplex", "popis": "Stav terén: pouze stavba. Stav zástavba: stojící. Označováno jako: zámek. Pravděpodobnost existence: 100 %.", "poznamka": ""}, {"id": "C-N9005505", "nazev": "Pňovany - sídlo 1", "typ": "pozůstatek sídla elity", "katastr": "Pňovany", "okres": "Plzeň-sever", "coords": [49.777137, 13.120197], "periods": ["vrcholný středověk–novověk"], "zachov": "zaniklá lokalita", "popis": "Stav terén: neznámé. Stav zástavba: zaniklé. Pravděpodobnost existence: 100 %.", "poznamka": "Lokalizace sídla je nejistá (důvěryhodnost: 60 %)."}, {"id": "C-N9005504", "nazev": "Pňovany - sídlo 2", "typ": "pozůstatek sídla elity", "katastr": "Pňovany", "okres": "Plzeň-sever", "coords": [49.777085, 13.121176], "periods": ["novověk 2"], "zachov": "historická budova/komplex", "popis": "Datace sídla: 18.st. 3.čt. (vznik i zánik nejistý). Stav terén: pouze stavba. Stav zástavba: stojící. Označováno jako: zámeček. Pravděpodobnost existence: 100 %.  Držba sídla: 18.st. 3.čt.: Širndingarové ze Širndingu", "poznamka": ""}, {"id": "C-N9005488", "nazev": "Nebřeziny - sídlo 2", "typ": "pozůstatek sídla elity", "katastr": "Nebřeziny", "okres": "Plzeň-sever", "coords": [49.922279, 13.412917], "periods": ["novověk 2"], "zachov": "historická budova/komplex", "popis": "Datace sídla: 18.st. 1.čt. - 18.st. 2.čt. (vznik i zánik nejistý). Stav terén: pouze stavba. Stav zástavba: stojící. Označováno jako: zámek. Pravděpodobnost existence: 100 %.  Držba sídla: 18.st. 1.čt. - 18.st. 2.čt. (1720–1743): Kondelové [Matěj Ondřej (1720-1743)] 18.st. 2.čt. (1743–): církev - řády [cisterciáci Plasy]", "poznamka": ""}, {"id": "C-N9005385", "nazev": "Újezd nade Mží - sídlo 1", "typ": "pozůstatek sídla elity", "katastr": "Újezd nade Mží", "okres": "Plzeň-sever", "coords": [49.788029, 13.195054], "periods": [], "zachov": "", "popis": "Datace sídla: 13.st. 2.čt. - 14.st. 4.čt. (vznik i zánik nejistý). Pravděpodobnost existence: 80 %.  Držba sídla: 13.st. 2.čt. (1242–): z Újezda (nade Mží) [Jindřich (1242); Petroš (1248); Protiva (1248)]", "poznamka": "Lokalizace sídla je nejistá (důvěryhodnost: 30 %)."}, {"id": "C-N9004443", "nazev": "Druztová - sídlo 1 - Věžka", "typ": "pozůstatek sídla elity", "katastr": "Druztová", "okres": "Plzeň-sever", "coords": [49.794816, 13.457456], "periods": ["pozdní středověk"], "zachov": "ruina", "popis": "Datace sídla: 14.st. 2.čt. - 15.st. 4.čt. Stav terén: zachovalé. Stav zástavba: relikty zdiva. Označováno jako: hrad. Pravděpodobnost existence: 100 %. Důvod zániku: zničení - dobytí. Hrad má nejméně čtyři stavební fáze. Zbytky valového opevnění na vyvýšenině proti čelu hradu považovány za obléhací tábor nebo předsunutou baštu.  Držba sídla: 14.st. 3.čt. (1351–): ze Švamberka 14.st. 4.čt. - 15.st. 1.čt. (1377–1406): ze Stupna [Otík (1377)] 15.st. 1.čt. - 15.st. 2.čt. (1406–1434): z Chrástu [Petr Prase (1422-1434)] 15.st. 2.čt. (1434–): Klenovští z Klenové [Přibík (1434)] 15.st. 4.čt. (1478 – zánik): města [Plzeň]", "poznamka": ""}, {"id": "C-N9004441", "nazev": "Česká Bříza - sídlo 1 - Hrádek (Stegyn, Kámen)", "typ": "pozůstatek sídla elity", "katastr": "Česká Bříza", "okres": "Plzeň-sever", "coords": [49.834809, 13.42591], "periods": ["vrcholný středověk"], "zachov": "nadzemní relikty", "popis": "Datace sídla: 13.st. 3.čt. - 13.st. 4.čt. Stav terén: zachovalé. Stav zástavba: reliéfní pozůstatky. Označováno jako: hrádek. Pravděpodobnost existence: 100 %. Důvod zániku: dar - sloučení?  Držba sídla: 13.st. 4.čt. (1282 – zánik): církev - řády [cisterciáci Plasy] 13.st. 4.čt. (–1282): z Kařeza [Ota (1282)]", "poznamka": ""}, {"id": "C-N9004434", "nazev": "Bohy - sídlo 1 - Krašov", "typ": "pozůstatek sídla elity", "katastr": "Bohy", "okres": "Plzeň-sever", "coords": [49.949544, 13.58538], "periods": ["novověk 1", "pozdní středověk", "novověk 2", "vrcholný středověk"], "zachov": "ruina", "popis": "Datace sídla: 13.st. 4.čt. - 18.st. 4.čt. (vznik nejistý). Stav terén: zachovalé. Stav zástavba: ruina. Označováno jako: hrad, zámek. Pravděpodobnost existence: 100 %. Důvod zániku: dědictví. Na sousedním vrcholu předsunutá bašta.  Držba sídla: 13.st. 4.čt. - 14.st. 2.čt. (1283–): z Krašova [Sezema (1283-1312)] 14.st. 3.čt. - 14.st. 4.čt.: Švihovští z Rýzmberka [Vilém] 14.st. 4.čt. - 16.st. 2.čt. (–1526): Libštejnští z Kolovrat [Hanuš] 17.st. 3.čt. - 18.st. 4.čt. (–1785): církev - řády [cisterciáci Plasy]", "poznamka": ""}, {"id": "C-N9004432", "nazev": "Lhota (u Chříče) - sídlo 2 - Deliba (Hradiště nad Javornicí)", "typ": "pozůstatek sídla elity", "katastr": "Lhota u Chříče", "okres": "Plzeň-sever", "coords": [49.995739, 13.641599], "periods": ["pozdní středověk"], "zachov": "nadzemní relikty", "popis": "Datace sídla: 15.st. 2.čt. - 15.st. 4.čt. Stav terén: zachovalé. Stav zástavba: reliéfní pozůstatky. Označováno jako: hrad. Pravděpodobnost existence: 100 %. Fortifikace na vrcholu dominantní výšiny, vejčitý obrys, na obou vrcholech opevněný do skály zasekanými příkopy. Základy čtverhranné, snad věžovité stavby se nedochovaly.", "poznamka": ""}, {"id": "C-N9004431", "nazev": "Kožlany - sídlo 1 - Angerbach (Nový hrádek)", "typ": "pozůstatek sídla elity", "katastr": "Kožlany", "okres": "Plzeň-sever", "coords": [49.998786, 13.560569], "periods": ["vrcholný středověk", "pozdní středověk"], "zachov": "nadzemní relikty", "popis": "Datace sídla: 13.st. 3.čt. - 14.st. 2.čt. Stav terén: zachovalé. Stav zástavba: reliéfní pozůstatky. Označováno jako: hrad. Pravděpodobnost existence: 100 %.  Držba sídla: 14.st. 1.čt. (1313–): z Kožlan [Ota (1313)]", "poznamka": ""}, {"id": "C-N9004408", "nazev": "Čeminy - sídlo 1 - Komberk", "typ": "pozůstatek sídla elity", "katastr": "Čeminy", "okres": "Plzeň-sever", "coords": [49.785647, 13.273878], "periods": ["pozdní středověk"], "zachov": "nadzemní relikty", "popis": "Datace sídla: 14.st. 1.čt. - 15.st. 4.čt. Stav terén: zachovalé. Stav zástavba: reliéfní pozůstatky. Označováno jako: hrad. Pravděpodobnost existence: 100 %. Důvod zániku: zničení - dobytí. 1558 připomínán jako pustý. Dvojitá dispozice - rozsáhlé  obdélné předhradí se stopami objektu, opevněno valem a příkopem, stísněné jádro. V jižní části předpokládaný bergfrit.  Držba sídla: 14.st. 1.čt. (1313–): z Komberka [Ojíř (1313)] 14.st. 2.čt. - 15.st. 1.čt. (1340–1420): církev - řády [premonstráti Teplá] 15.st. 2.čt.: z Nečtin [Vilém] 15.st. 3.čt. - 15.st. 4.čt. (–1478): z Gutštejna", "poznamka": ""}, {"id": "C-N9004407", "nazev": "Plešnice - sídlo 1 - Buben", "typ": "pozůstatek sídla elity", "katastr": "Plešnice", "okres": "Plzeň-sever", "coords": [49.779771, 13.190795], "periods": ["pozdní středověk", "novověk 1"], "zachov": "ruina", "popis": "Datace sídla: 14.st. 2.čt. - 16.st. 2.čt. (vznik i zánik nejistý). Stav terén: zachovalé. Stav zástavba: ruina. Označováno jako: hrad. Pravděpodobnost existence: 100 %. 1567 pustý.  Držba sídla: 14.st. 2.čt.: z Bubna 14.st. 4.čt. (1379–): z Jeřeně", "poznamka": ""}, {"id": "C-N9004406", "nazev": "Hunčice - sídlo 1 - Frumštejn", "typ": "pozůstatek sídla elity", "katastr": "Hunčice", "okres": "Plzeň-sever", "coords": [49.82857, 13.211511], "periods": ["pozdní středověk"], "zachov": "nadzemní relikty", "popis": "Datace sídla: 14.st. 1.čt. - 15.st. 3.čt. (vznik i zánik nejistý). Stav terén: zachovalé. Stav zástavba: reliéfní pozůstatky. Označováno jako: hrad. Pravděpodobnost existence: 100 %. Důvod zániku: zničení - dobytí. Pravidelná obdélná dispozice je opevněná mohutným valem.  Držba sídla: 14.st. 3.čt. - 15.st. 3.čt. (1357–): z Frumštejna", "poznamka": ""}, {"id": "C-N9004405", "nazev": "Všeruby (u Plzně) - sídlo 1", "typ": "pozůstatek sídla elity", "katastr": "Všeruby u Plzně", "okres": "Plzeň-sever", "coords": [49.842749, 13.22543], "periods": ["pozdní středověk", "raný středověk 4", "novověk 1", "vrcholný středověk"], "zachov": "nadzemní relikty", "popis": "Datace sídla: 12.st. 4.čt. - 16.st. 1.čt. Stav terén: zbytky. Stav zástavba: reliéfní pozůstatky. Označováno jako: dvorec, hrad. Pravděpodobnost existence: 100 %. Důvod zániku: prodej - přesídlení.  Držba sídla: 13.st. 1.čt. - 14.st. 4.čt. (1212–1378): ze Všerub [Hrdibor (1212-1217); Bavor (1378)] 14.st. 4.čt. - 16.st. 1.čt. (1385–1520): z Gutštejna 14.st. 4.čt. (1379–): z Rabštejna [Jindřich (1379)] 16.st. 1.čt. (1520 – zánik): Kokořovci z Kokořova", "poznamka": ""}, {"id": "C-N9004404", "nazev": "Podmokly (u Úněšova) - sídlo 1", "typ": "pozůstatek sídla elity", "katastr": "Podmokly u Úněšova", "okres": "Plzeň-sever", "coords": [49.869256, 13.178008], "periods": ["novověk 1", "pozdní středověk", "vrcholný středověk"], "zachov": "ruina", "popis": "Datace sídla: 13.st. 3.čt. - 17.st. 1.čt. Stav terén: zachovalé. Stav zástavba: relikty zdiva. Označováno jako: hrad. Pravděpodobnost existence: 100 %. Důvod zániku: prodej - sloučení.  Držba sídla: 13.st. 3.čt. - 16.st. 1.čt. (1269–1513): z Podmokel [Jindřich (1269)] 16.st. 1.čt. - 17.st. 1.čt. (1525–): Pernklové ze Šenraitu 16.st. 1.čt. (–1525): Lozští z Rabštejna [Jindřich (1525)] 17.st. 1.čt. (1615 – zánik): Markvartové z Hrádku [Diviš (1615)]", "poznamka": "V literatuře vedena také tvrz v Úněšově, s tímto objektem však nesouvisí."}, {"id": "C-N9004398", "nazev": "Dolní Bělá - sídlo 1", "typ": "pozůstatek sídla elity", "katastr": "Dolní Bělá", "okres": "Plzeň-sever", "coords": [49.897793, 13.273471], "periods": ["pozdní středověk", "novověk 1", "novověk 2"], "zachov": "ruina", "popis": "Datace sídla: 14.st. 1.čt. - 18.st. 3.čt. Stav terén: zachovalé. Stav zástavba: relikty zdiva. Označováno jako: hrad, zámek. Pravděpodobnost existence: 100 %. Důvod zániku: prodej. 1584 přestavěn na renesanční zámek, 1757 zanedbaný, na konci 18. stol. zpustlý, rozebírán. Před hradem se zřejmě nacházelo rozsáhlé předhradí, dnes pohlcené vsí. Zachovány převážně terénní náznaky a několik fragmentů zdiv.  Držba sídla: 14.st. 1.čt. - 15.st. 1.čt. (1315–1415): z Krašovic 15.st. 1.čt. (1415–): ze Švamberka 15.st. 2.čt. - 16.st. 1.čt. (1426–1509): z Gutštejna [Burian (1476)] 16.st. 1.čt. (–1510): Libštejnští z Kolovrat [Albrecht (1510)] 16.st. 1.čt. (1510–1514): Roupovští z Roupova [Václav (1514)] 16.st. 1.čt. (1514–): z Gutštejna [Jan, Volf (1514)] 16.st. 3.čt. - 16.st. 4.čt. (1555–): Markvartové z Hrádku [Šebastián (1555); Kryštof (1584); Diviš] 18.st. 3.čt. (1757 – zánik): církev - řády [cisterciáci Plasy] bez datace: Roupovští z Roupova [Jan]", "poznamka": ""}, {"id": "C-N9004397", "nazev": "Vrtbo (u Horní Bělé) - sídlo 1 - Vrtba", "typ": "pozůstatek sídla elity", "katastr": "Horní Bělá", "okres": "Plzeň-sever", "coords": [49.882565, 13.249473], "periods": ["pozdní středověk", "novověk 1"], "zachov": "nadzemní relikty", "popis": "Datace sídla: 14.st. 1.čt. - 16.st. 2.čt. Stav terén: zachovalé. Stav zástavba: reliéfní pozůstatky. Označováno jako: hrad. Pravděpodobnost existence: 100 %. Důvod zániku: prodej - sloučení. Zachováno okrouhlé hradiště, opevněné příkopem a valem. Vlastní povrch silně narušen výkopy různého stáří. Lokalita zajímavá vzhledem k dobře patrnému vztahu hradu ke vsi.  Držba sídla: 14.st. 1.čt. - 15.st. 4.čt. (1316–): z Vrtby [Sezema (1316)] 15.st. 4.čt. (1484–): Habartové ze Stochovic [Jan (1484)] 16.st. 1.čt. - 16.st. 2.čt. (1511–1538): z Rabštejna 16.st. 2.čt. (1538 – zánik): Markvartové z Hrádku [Sebastián (1538)]", "poznamka": ""}, {"id": "C-N9004396", "nazev": "Úněšov - sídlo 1 - Malšín (Malešín, Malý Špičák, Čbán)", "typ": "pozůstatek sídla elity", "katastr": "Úněšov", "okres": "Plzeň-sever", "coords": [49.901975, 13.157363], "periods": ["vrcholný středověk"], "zachov": "nadzemní relikty", "popis": "Datace sídla: 13.st. 3.čt. - 13.st. 4.čt. Stav terén: zbytky. Stav zástavba: zaniklé. Označováno jako: hrádek. Pravděpodobnost existence: 100 %. Konstrukce objektů patrně dřevěné. Větší oválná plocha neobsahuje pozůstatky objektů, menší je tvořena příkopem a valem. Vstupní komunikace vedená valem.", "poznamka": ""}, {"id": "C-N9004394", "nazev": "Nečtiny - sídlo 2 - Preitenstein", "typ": "pozůstatek sídla elity", "katastr": "Nové Městečko u Nečtin", "okres": "Plzeň-sever", "coords": [49.960308, 13.161257], "periods": ["novověk 1", "pozdní středověk"], "zachov": "ruina", "popis": "Datace sídla: 14.st. 2.čt. - 16.st. 2.čt. Stav terén: zachovalé. Stav zástavba: ruina. Označováno jako: hrad. Pravděpodobnost existence: 100 %. Důvod zániku: zrušení.  Držba sídla: 14.st. 2.čt. - 14.st. 4.čt. (1333–): Lucemburkové 14.st. 2.čt. (–1333): Pluhové z Rabštejna [Oldřich] 14.st. 2.čt.: Lucemburkové 15.st. 2.čt. (1434–): Kočovští z Kočova [Zbyněk (1434)] 15.st. 2.čt. (1441–): z Gutštejna [Burjan (1441)] 16.st. 2.čt.: Pluhové z Rabštejna [Kašpar] bez datace: Habsburkové", "poznamka": ""}, {"id": "C-N9004393", "nazev": "Březín - sídlo 1 (Bržín)", "typ": "pozůstatek sídla elity", "katastr": "Březín", "okres": "Plzeň-sever", "coords": [49.953569, 13.121853], "periods": ["pozdní středověk", "vrcholný středověk"], "zachov": "zaniklá lokalita", "popis": "Datace sídla: 13.st. 4.čt. - 14.st. 4.čt. Stav terén: zcela zaniklé. Stav zástavba: zcela zaniklé. Označováno jako: hrad. Pravděpodobnost existence: 100 %. Lomem odtěžený hrad na Pekelném vrchu. 1401 už uváděna pouze hora \"Hradiště\", bez zmínek o hradu. Hrad zcela zanikl těžbou  čediče, poslední zbytky zkoumal A. Hejna.  Držba sídla: 14.st. 1.čt. - 14.st. 4.čt. (1321–): z Bržína [Ivan]", "poznamka": ""}, {"id": "C-N9004392", "nazev": "Hrádek (u Manětína) - sídlo 1 (Brdo)", "typ": "pozůstatek sídla elity", "katastr": "Hrádek u Manětína", "okres": "Plzeň-sever", "coords": [50.005903, 13.261315], "periods": ["vrcholný středověk", "pozdní středověk"], "zachov": "nadzemní relikty", "popis": "Datace sídla: 13.st. 2.čt. - 14.st. 2.čt. (vznik i zánik nejistý). Stav terén: zachovalé. Stav zástavba: reliéfní pozůstatky. Označováno jako: hrad. Pravděpodobnost existence: 100 %.  Držba sídla: 14.st. 1.čt. (1319–): z Brda [Jetřich (1319-1325)]", "poznamka": "Sekundárně užité eneolitické hradiště."}, {"id": "C-N9004391", "nazev": "Nečtiny - sídlo 1 - Špičák", "typ": "pozůstatek sídla elity", "katastr": "Lešovice", "okres": "Plzeň-sever", "coords": [49.980369, 13.177502], "periods": ["vrcholný středověk", "pozdní středověk"], "zachov": "nadzemní relikty", "popis": "Datace sídla: 13.st. 3.čt. - 15.st. 4.čt. (vznik i zánik nejistý). Stav terén: pouze stavba. Stav zástavba: reliéfní pozůstatky. Označováno jako: tvrz, hrad. Pravděpodobnost existence: 100 %.", "poznamka": ""}, {"id": "C-N9004381", "nazev": "Rabštejn nad Střelou - sídlo 2 - Sychrov (Hrádek, Malý Sychrov)", "typ": "pozůstatek sídla elity", "katastr": "Rabštejn nad Střelou", "okres": "Plzeň-sever", "coords": [50.04212, 13.28835], "periods": ["pozdní středověk", "novověk 1"], "zachov": "ruina", "popis": "Datace sídla: 14.st. 2.čt. - 16.st. 1.čt. (vznik nejistý). Stav terén: zbytky. Stav zástavba: ruina. Označováno jako: hrad. Pravděpodobnost existence: 100 %. Důvod zániku: přesídlení. Po 1523 opuštěn. Zahrnuje snad i předsunuté opevnění.  Držba sídla: 15.st. 2.čt. - 16.st. 1.čt. (1439–1508): z Rabštejna [Jan st. (1439)] 16.st. 1.čt. (1508–1509): z Gutštejna [Kryštof (1508-1509)] 16.st. 1.čt. (1509–1518): Jagellonci 16.st. 1.čt. (1518–1523): Šlikové z Holíče", "poznamka": "Doba vzniku nejasná, ale podle sdělení Z. Gersdorfové zjevně starší, než dosud běžně uváděno."}, {"id": "C-N9004380", "nazev": "Rabštejn nad Střelou - sídlo 1 (Havraní kámen)", "typ": "pozůstatek sídla elity", "katastr": "Rabštejn nad Střelou", "okres": "Plzeň-sever", "coords": [50.04212, 13.293525], "periods": ["pozdní středověk", "industriální období 1", "novověk 1", "novověk 2", "industriální období 2"], "zachov": "historická budova/komplex", "popis": "Datace sídla: 14.st. 2.čt. - 20.st. 1.čt. Stav terén: zbytky. Stav zástavba: stojící - přestavěné. Označováno jako: hrad, zámek. Pravděpodobnost existence: 100 %. 1532 vyhořel, obnoven, 1669 v areálu založen klášter servítů, 1705 přistavěn zámek, který pohltil zbytek hradní zástavby.  Držba sídla: 14.st. 2.čt. - 14.st. 3.čt. (–1357): Pluhové z Rabštejna [Oldřich] 14.st. 3.čt. - 14.st. 4.čt. (1357–1397): Lucemburkové 15.st. 4.čt. - 16.st. 1.čt. (–1509): z Gutštejna [Burjan; Kryštof (1509)] 16.st. 1.čt. - 16.st. 3.čt. (1518–): Šlikové z Holíče [Jáchym; Lorenc (1532)] 16.st. 1.čt. (1509–1518): Jagellonci 16.st. 3.čt. (1569–): Šlikové z Holíče 16.st. 3.čt. (–1569): ze Švamberka 18.st. 1.čt. - 18.st. 2.čt. (1714–1733): Černínové z Chudenic [František Josef (1714)] 18.st. 1.čt. (1703–1714): z Pöttingu [František Karel (1703-1714)] 18.st. 2.čt. - 20.st. 1.čt. (1748–1918): Lažanští z Bukové 18.st. 2.čt. (1733–1748): Krakovští z Kolovrat bez datace: Plavenští z Plavna", "poznamka": ""}, {"id": "C-N9004151", "nazev": "Kožlany - sídlo 2", "typ": "pozůstatek sídla elity", "katastr": "Kožlany", "okres": "Plzeň-sever", "coords": null, "periods": ["vrcholný středověk–novověk"], "zachov": "", "popis": "Pravděpodobnost existence: 100 %.", "poznamka": ""}, {"id": "C-N9004001", "nazev": "Dubjany (u Chříče) - sídlo 2", "typ": "pozůstatek sídla elity", "katastr": "Chříč", "okres": "Plzeň-sever", "coords": [49.965481, 13.670029], "periods": ["novověk 1", "pozdní středověk"], "zachov": "zaniklá lokalita", "popis": "Datace sídla: 14.st. 3.čt. - 16.st. 3.čt. (vznik i zánik nejistý). Stav terén: neznámé. Stav zástavba: zaniklé. Označováno jako: tvrz. Pravděpodobnost existence: 100 %.  Držba sídla: 14.st. 3.čt. (1360–): z Dubjan [Hrdoň (1360)]", "poznamka": ""}, {"id": "C-N9003729", "nazev": "Úlice - sídlo 1", "typ": "pozůstatek sídla elity", "katastr": "Úlice", "okres": "Plzeň-sever", "coords": [49.760366, 13.148445], "periods": ["novověk 1", "industriální období 1", "pozdní středověk", "industriální období 2", "novověk 2"], "zachov": "historická budova/komplex", "popis": "Datace sídla: 15.st. 3.čt. - 20.st. 1.čt. (vznik i zánik nejistý). Stav terén: neznámé. Stav zástavba: stojící - výrazně přestavěné. Označováno jako: tvrz, zámek. Pravděpodobnost existence: 100 %.  Držba sídla: 15.st. 3.čt. - 17.st. 3.čt.: Úličtí z Plešnic [Josef (1567-1602); Jindřich Jiří (1674)] 18.st. 1.čt. (1713–): Schirndingarové ze Schirndingu [Jindřich Zikmund (1713)] 18.st. 1.čt. (–1713): z Říčan", "poznamka": ""}, {"id": "C-N9003682", "nazev": "Jarov - sídlo 1 - Třebekov", "typ": "pozůstatek sídla elity", "katastr": "Jarov", "okres": "Plzeň-sever", "coords": [49.865204, 13.450399], "periods": ["středověk–novověk"], "zachov": "", "popis": "Označováno jako: grangie. Pravděpodobnost existence: 100 %.", "poznamka": ""}, {"id": "C-N9003174", "nazev": "Nečtiny - sídlo 3", "typ": "pozůstatek sídla elity", "katastr": "Nečtiny", "okres": "Plzeň-sever", "coords": [49.959592, 13.159226], "periods": ["novověk 2", "industriální období 2", "novověk 1", "industriální období 1"], "zachov": "historická budova/komplex", "popis": "Datace sídla: 16.st. 3.čt. - 20.st. 1.čt. Stav terén: neznámé. Stav zástavba: stojící - výrazně přestavěné. Označováno jako: tvrz, zámek. Pravděpodobnost existence: 100 %.  Držba sídla: 16.st. 3.čt. (1557–): Gryspekové z Griesbachu [Florian (1557-1588)] 17.st. 3.čt.: Kokořovci z Kokořova [Adam Václav (1673)] 19.st. 3.čt.: Mensdorf-Pouillyové [Alfons (1855-1858)]", "poznamka": ""}, {"id": "C-N9003078", "nazev": "Manětín - sídlo 1", "typ": "pozůstatek sídla elity", "katastr": "Manětín", "okres": "Plzeň-sever", "coords": [49.990808, 13.231139], "periods": ["pozdní středověk", "vrcholný středověk", "raný středověk 4"], "zachov": "lokalita pod zástavbou", "popis": "Datace sídla: 12.st. 4.čt. - 15.st. 4.čt. Stav terén: zaniklé. Stav zástavba: v mladší stavbě - zbytky. Označováno jako: komenda. Pravděpodobnost existence: 100 %. Důvod zániku: prodej - změna účelu.  Držba sídla: 12.st. 4.čt. - 15.st. 1.čt. (1187–1420): církev - řády [johanité] 15.st. 1.čt. - 15.st. 4.čt. (1420–1479): ze Švamberka [Bohuslav (1420)]", "poznamka": ""}, {"id": "C-N9002995", "nazev": "Liběšov (u Bezvěrova) - sídlo 1", "typ": "pozůstatek sídla elity", "katastr": "Bezvěrov", "okres": "Plzeň-sever", "coords": [49.992855, 13.073067], "periods": ["vrcholný středověk–novověk"], "zachov": "nadzemní relikty", "popis": "Stav terén: zachovalé. Stav zástavba: reliéfní pozůstatky. Označováno jako: hrádek. Pravděpodobnost existence: 100 %.", "poznamka": ""}, {"id": "C-N9002901", "nazev": "Kralovice (u Rakovníka) - sídlo 1", "typ": "pozůstatek sídla elity", "katastr": "Kralovice u Rakovníka", "okres": "Plzeň-sever", "coords": null, "periods": ["vrcholný středověk–novověk"], "zachov": "", "popis": "Označováno jako: tvrz. Pravděpodobnost existence: 100 %.", "poznamka": ""}, {"id": "C-N9002747", "nazev": "Chříč - sídlo 1", "typ": "pozůstatek sídla elity", "katastr": "Chříč", "okres": "Plzeň-sever", "coords": [49.9725, 13.647265], "periods": ["novověk 2", "industriální období 2", "industriální období 1", "novověk 1", "pozdní středověk"], "zachov": "historická budova/komplex", "popis": "Datace sídla: 14.st. 1.čt. - 20.st. 1.čt. (vznik i zánik nejistý). Stav terén: neznámé. Stav zástavba: stojící - přestavěné. Označováno jako: tvrz, zámek. Pravděpodobnost existence: 100 %.  Držba sídla: 15.st. 2.čt. (1447–): z Malšína [Sezema (1447)] 16.st. 2.čt. - 16.st. 4.čt. (1540–1585): Lažanští z Bukové [Sebastián (1567-1585)] 17.st. 1.čt. - 18.st. 1.čt. (–1701): Týřovští z Ensidle [Jan (1609); Jiří Jakub] 18.st. 1.čt. - 18.st. 3.čt. (1701–1764): Lažanští z Bukové 18.st. 3.čt. - 20.st. 1.čt. (1764–1906): ostatní instituce [ústav šlechtičen Nové Město]", "poznamka": ""}, {"id": "C-N9002417", "nazev": "Čeminy - sídlo 2", "typ": "pozůstatek sídla elity", "katastr": "Čeminy", "okres": "Plzeň-sever", "coords": [49.799833, 13.251243], "periods": ["novověk 1", "industriální období 1", "novověk 2"], "zachov": "historická budova/komplex", "popis": "Datace sídla: 16.st. 3.čt. - 19.st. 2.čt. (vznik i zánik nejistý). Stav terén: neznámé. Stav zástavba: stojící - výrazně přestavěné. Označováno jako: sídlo, zámek. Pravděpodobnost existence: 100 %.  Držba sídla: 16.st. 3.čt. (1554–): Podmokelští z Prostiboře [Jivan (1554)] 17.st. 3.čt. - 18.st. 4.čt. (1670–1790): církev - řády [benediktini Kladruby] 18.st. 4.čt. - 19.st. 2.čt. (1790–): z Erbenů [Jan (1790-1806); Josef (1825-1831)]", "poznamka": ""}, {"id": "C-N9001657", "nazev": "Nekmíř - sídlo 1", "typ": "pozůstatek sídla elity", "katastr": "Nekmíř", "okres": "Plzeň-sever", "coords": [49.857819, 13.257479], "periods": ["novověk 1", "industriální období 1", "industriální období 2", "novověk 2", "pozdní středověk"], "zachov": "historická budova/komplex", "popis": "Datace sídla: 14.st. 3.čt. - 20.st. 1.čt. (vznik i zánik nejistý). Stav terén: neznámé. Stav zástavba: stojící - přestavěné. Označováno jako: tvrz. Pravděpodobnost existence: 100 %. 1620 - vypálena.  Držba sídla: 14.st. 3.čt. (1358–): z Nekmíře [Racek (1358-1374)] 16.st. 4.čt. - 17.st. 1.čt.: Markvartové z Hrádku [Jan (1590); Kryštof (1590-1595); Diviš (1595-1621)] 17.st. 2.čt. - 17.st. 3.čt.: z Golče [Zikmund Bedřich (1656); Marie Isabela (1656)]", "poznamka": ""}, {"id": "C-N9001653", "nazev": "Kaceřov - sídlo 1", "typ": "pozůstatek sídla elity", "katastr": "Kaceřov", "okres": "Plzeň-sever", "coords": [49.8727, 13.509128], "periods": ["pozdní středověk", "industriální období 1", "industriální období 2", "novověk 2", "novověk 1"], "zachov": "historická budova/komplex", "popis": "Datace sídla: 14.st. 4.čt. - 20.st. 1.čt. Stav terén: zachovalé. Stav zástavba: stojící - výrazně přestavěné. Označováno jako: tvrz, zámek. Pravděpodobnost existence: 100 %. 1430 - pobořena husity.  Držba sídla: 14.st. 4.čt. (1376–): ze Švamberka [Ctibor (1376)] 15.st. 1.čt. - 16.st. 1.čt. (1420–1513): Libštejnští z Kolovrat 15.st. 1.čt. (1403–): Kořenští z Terešova [Petr (1403)] 15.st. 1.čt. (1406–1420): církev - řády [cisterciáci Plasy] 16.st. 1.čt. (1513–1518): církev - řády [cisterciáci Plasy] 16.st. 2.čt. - 17.st. 1.čt. (1539–): Gryspekové z Griesbachu [Florián (1539-1588)] 17.st. 1.čt. - 18.st. 4.čt. (–1785): církev - řády [cisterciáci Plasy] 18.st. 4.čt. - 19.st. 2.čt. (1785–1827): ostatní instituce [náboženský fond] 19.st. 2.čt. - 20.st. 1.čt. (1827–1912): Metternichové", "poznamka": ""}, {"id": "C-N9001609", "nazev": "Luhov (u Líšťan) - sídlo 1", "typ": "pozůstatek sídla elity", "katastr": "Luhov u Líšťan", "okres": "Plzeň-sever", "coords": [49.814226, 13.144019], "periods": ["vrcholný středověk", "pozdní středověk"], "zachov": "nadzemní relikty", "popis": "Datace sídla: 13.st. 3.čt. - 15.st. 1.čt. (vznik i zánik nejistý). Stav terén: zachovalé. Stav zástavba: zaniklé. Označováno jako: tvrz. Pravděpodobnost existence: 100 %. Důvod zániku: prodej - sloučení.", "poznamka": ""}, {"id": "C-N9001566", "nazev": "Lipno (u Hunčic) - sídlo 2", "typ": "pozůstatek sídla elity", "katastr": "Lipno u Hunčic", "okres": "Plzeň-sever", "coords": [49.809654, 13.171586], "periods": ["novověk 1", "industriální období 1", "novověk 2"], "zachov": "historická budova/komplex", "popis": "Datace sídla: 16.st. 3.čt. - 19.st. 1.čt. Stav terén: pouze stavba. Stav zástavba: stojící - přestavěné. Označováno jako: tvrz. Pravděpodobnost existence: 100 %. Důvod zániku: prodej - sloučení.  Držba sídla: 16.st. 3.čt. - 17.st. 2.čt. (1564–): Broumové z Miřetic 17.st. 3.čt.: Vidršpergárové z Vidršpergu 19.st. 1.čt. (1804–): Dohalští z Dohalic [Maria Václav Bořek (1804)]", "poznamka": ""}, {"id": "C-N9001564", "nazev": "Líšťany - sídlo 1", "typ": "pozůstatek sídla elity", "katastr": "Líšťany", "okres": "Plzeň-sever", "coords": [49.829582, 13.183153], "periods": ["industriální období 2", "pozdní středověk", "vrcholný středověk", "industriální období 1", "novověk 2", "novověk 1"], "zachov": "historická budova/komplex", "popis": "Datace sídla: 13.st. 3.čt. - 20.st. 1.čt. Stav terén: neznámé. Stav zástavba: stojící - výrazně přestavěné. Označováno jako: tvrz, zámek. Pravděpodobnost existence: 100 %.  Držba sídla: 13.st. 3.čt. - 14.st. 1.čt. (1269–1316): z Líšťan 14.st. 3.čt. - 15.st. 2.čt.: z Gutštejna 15.st. 3.čt. - 16.st. 3.čt. (–1552): Bohuchvalové z Hrádku 16.st. 3.čt. - 17.st. 2.čt. (1552–1628): Černínové z Chudenic [Jakub (1552); Jan Ondřej (1585)] 17.st. 2.čt. - 17.st. 3.čt. (1628–1660): Příchovští z Příchovic [Václav ml. (1628)] 17.st. 3.čt. (1660–): Steinbachové z Kranichštejna [Anton (1660)]", "poznamka": ""}, {"id": "C-N9001557", "nazev": "Lipno (u Hunčic) - sídlo 1", "typ": "pozůstatek sídla elity", "katastr": "Lipno u Hunčic", "okres": "Plzeň-sever", "coords": null, "periods": ["novověk 1", "pozdní středověk"], "zachov": "zaniklá lokalita", "popis": "Datace sídla: 14.st. 1.čt. - 16.st. 2.čt. (vznik i zánik nejistý). Stav terén: neznámé. Stav zástavba: zaniklé. Označováno jako: tvrz. Pravděpodobnost existence: 100 %. Důvod zániku: prodej - přestavba?  Držba sídla: 14.st. 1.čt. (1316–): z Lipna [Bohosud (1316)] 14.st. 4.čt. - 15.st. 4.čt. (1379–1487): Rousové z Lipna [Jan] 15.st. 4.čt. (1487–): z Jistebna [Pukart]", "poznamka": ""}, {"id": "C-N9001478", "nazev": "Šebíkov (u Trojan) - sídlo 1", "typ": "pozůstatek sídla elity", "katastr": "Trojany u Mladotic", "okres": "Plzeň-sever", "coords": [49.97083, 13.404512], "periods": ["vrcholný středověk", "pozdní středověk"], "zachov": "nadzemní relikty", "popis": "Datace sídla: 13.st. 4.čt. - 15.st. 2.čt. (vznik i zánik nejistý). Stav terén: zachovalé. Stav zástavba: reliéfní pozůstatky. Označováno jako: tvrz. Pravděpodobnost existence: 100 %. Důvod zániku: zničení - dobytí.  Držba sídla: 13.st. 4.čt.: z Mašťova 14.st. 1.čt. - 15.st. 1.čt. (1313–1419): církev - řády [cisterciáci Plasy] 15.st. 1.čt. - 15.st. 2.čt. (1419–1430): ze Švamberka [Bohuslav (1419)] 15.st. 2.čt. (1430–): církev - řády [cisterciáci Plasy]", "poznamka": ""}, {"id": "C-N9001396", "nazev": "Žihle - sídlo 1", "typ": "pozůstatek sídla elity", "katastr": "Žihle", "okres": "Plzeň-sever", "coords": [50.045392, 13.376603], "periods": ["novověk 1"], "zachov": "historická budova/komplex", "popis": "Datace sídla: 16.st. 4.čt. - 17.st. 1.čt. Stav terén: pouze stavba. Stav zástavba: stojící - přestavěné. Označováno jako: tvrz. Pravděpodobnost existence: 100 %. Důvod zániku: konfiskace - sloučení.  Držba sídla: 16.st. 4.čt. - 17.st. 1.čt. (1600–): Chotkové z Chotkova [Václav (1600); Jiří (1618-1620)] 16.st. 4.čt. (–1600): Libštejnští z Kolovrat [Mikuláš (1600)] 17.st. 1.čt.: Černínové z Chudenic [Heřman]", "poznamka": ""}, {"id": "C-N9001366", "nazev": "Újezd nade Mží - sídlo 2", "typ": "pozůstatek sídla elity", "katastr": "Újezd nade Mží", "okres": "Plzeň-sever", "coords": [49.788328, 13.194753], "periods": ["industriální období 1", "novověk 2", "pozdní středověk", "novověk 1", "industriální období 2"], "zachov": "historická budova/komplex", "popis": "Datace sídla: 15.st. 4.čt. - 20.st. 1.čt. Stav terén: neznámé. Stav zástavba: stojící - přestavěné. Označováno jako: tvrz, zámek. Pravděpodobnost existence: 100 %.  Držba sídla: 16.st. 4.čt. (1579–): Broumové z Miřetic [Kryštof (1579)] 17.st. 1.čt. - 17.st. 2.čt. (1623–1640): Táhlové z Horštejna [Severýn (1623-1640); Alžběta Kateřina (1640)] 17.st. 1.čt. (1617–1623): Schirndingarové ze Schirndingu [Jošt Adam (1617)] 17.st. 2.čt. (1650–): Kleové z Roudné [Theofil (1650)] bez datace: z Říčan", "poznamka": ""}, {"id": "C-N9001315", "nazev": "Vlkošov - sídlo 1", "typ": "pozůstatek sídla elity", "katastr": "Vlkošov", "okres": "Plzeň-sever", "coords": [50.01239, 13.111317], "periods": ["novověk 2", "novověk 1", "pozdní středověk"], "zachov": "historická budova/komplex", "popis": "Datace sídla: 14.st. 1.čt. - 17.st. 3.čt. Stav terén: zachovalé. Stav zástavba: stojící. Označováno jako: tvrz. Pravděpodobnost existence: 100 %. Důvod zániku: prodej - sloučení.  Držba sídla: 15.st. 2.čt. - 17.st. 1.čt. (1437–1623): z Račína [Racek, Příbram (1437)] 15.st. 2.čt. (–1437): z Herštejna [Jan (1437)] 17.st. 3.čt. (zánik): Kokořovci z Kokořova [Adam Václav] bez datace: z Vetlé [Jan]", "poznamka": ""}];
+
+
+  const ERAS = [
+    { id:'prehistory', label:'Pravěk',       icon:'🪨', keywords:['pravěk','neolit','eneolit','chamsk','bronzov','halštat','laténsk','kultura kulov','HaD'] },
+    { id:'emiddleages', label:'Raný\nstředověk', icon:'⚔️', keywords:['raný středověk','přechod raný'] },
+    { id:'hmiddleages', label:'Vrcholný\nstředověk', icon:'🏰', keywords:['vrcholný středověk'] },
+    { id:'lmiddleages', label:'Pozdní\nstředověk', icon:'🗡️', keywords:['pozdní středověk','vrcholný–pozdní'] },
+    { id:'newage',      label:'Novověk',      icon:'⚜️', keywords:['novověk','středověk–novověk','vrcholný středověk–novověk','novověk–indust'] },
+    { id:'industrial',  label:'Industrial.',  icon:'🏭', keywords:['industriální'] },
+  ];
+
+  function periodToEra(p) {
+    const pl = (p||'').toLowerCase();
+    for(const era of ERAS) {
+      if(era.keywords.some(k => pl.includes(k.toLowerCase()))) return era.id;
+    }
+    return null;
+  }
+
+  function siteMatchesEra(site, eraId) {
+    if(!eraId) return true;
+    return (site.periods||[]).some(p => periodToEra(p) === eraId);
+  }
+
+  let activeEra = null;
+
+  function setEra(eraId) {
+    activeEra = (activeEra === eraId) ? null : eraId; // toggle
+    document.querySelectorAll('.era-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.era === activeEra);
+    });
+    rl();
+  }
+
+let filt = [...SITES], act = null, mkMap = {};
+
+// Naplň filtry
+const typs = [...new Set(SITES.map(s=>s.typ).filter(Boolean))].sort();
+const kats = [...new Set(SITES.map(s=>s.katastr).filter(Boolean))].sort();
+document.getElementById('ftyp').innerHTML += typs.map(t=>`<option value="${e(t)}">${e(t)}</option>`).join('');
+document.getElementById('fkat').innerHTML += kats.map(k=>`<option value="${e(k)}">${e(k)}</option>`).join('');
+
+// Leaflet
+const map = L.map('map', {center:[49.95,13.28], zoom:10, zoomControl:true});
+
+const baseLayers = {
+  osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    crossOrigin: true,
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19
+  }),
+  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    crossOrigin: true,
+    attribution: '© Esri, Maxar, Earthstar Geographics',
+    maxZoom: 19
+  }),
+  topo: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+    crossOrigin: true,
+    attribution: '© Esri, HERE, Garmin, OpenStreetMap',
+    maxZoom: 19
+  })
+};
+
+let activeLayerKey = 'osm';
+baseLayers.osm.addTo(map);
+
+function switchLayer(key) {
+  if(key === activeLayerKey) return;
+  map.removeLayer(baseLayers[activeLayerKey]);
+  baseLayers[key].addTo(map);
+  baseLayers[key].bringToBack();
+  map.invalidateSize();
+  activeLayerKey = key;
+  document.querySelectorAll('.layer-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.layer === key);
+  });
+}
+L.rectangle([[49.70,12.78],[50.22,13.85]], {
+  color:'#254a8e', weight:1.5, opacity:.3, fill:false, dashArray:'6,10'
+}).addTo(map);
+map.on('click', closeDetail);
+
+function sty(t) {
+  const s=(t||'').toLowerCase();
+  const ICONS = {
+    ohrazeni: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V7l9-4 9 4v14"/><path d="M3 11h18"/><path d="M9 21V11m6 10V11"/><rect x="9" y="14" width="6" height="7"/><path d="M12 3v4"/></svg>`,
+    pohrebiste: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v8m-3-5h6"/><rect x="5" y="10" width="14" height="4" rx="2"/><path d="M8 14v7m8-7v7M5 21h14"/></svg>`,
+    sidliste: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V9l7-6 7 6v12"/><path d="M9 21V15h6v6"/><path d="M9 9h.01M15 9h.01"/><path d="M17 21h4V11l-4-3"/></svg>`,
+    vyroba: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M4.22 4.22l2.12 2.12m11.32 11.32 2.12 2.12M2 12h3m14 0h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>`,
+    kultovni: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L8 7H4l3 4-1 5 6-2 6 2-1-5 3-4h-4z"/><path d="M12 22v-8"/></svg>`,
+    sidlo_elity: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20M4 20V9l8-7 8 7v11"/><path d="M9 20v-6h6v6"/><path d="M12 9h.01"/><path d="M8 9h.01M16 9h.01"/><path d="M4 13h16"/></svg>`,
+    def: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="4"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>`
+  };
+  if(s.includes('ohrazení')||s.includes('vojenství')) return {e:ICONS.ohrazeni,   c:'#c0392b',bg:'#fdecea'};
+  if(s.includes('pohřebiš')||s.includes('hrob'))      return {e:ICONS.pohrebiste, c:'#7d3c98',bg:'#f5eef8'};
+  if(s.includes('sídliš')||s.includes('osad'))        return {e:ICONS.sidliste,   c:'#1a7a4a',bg:'#eafaf1'};
+  if(s.includes('výrob'))                             return {e:ICONS.vyroba,     c:'#2471a3',bg:'#eaf4fb'};
+  if(s.includes('kult'))                              return {e:ICONS.kultovni,   c:'#b7770d',bg:'#fef9e7'};
+  if(s.includes('sídlo elity'))                       return {e:ICONS.sidlo_elity,c:'#c0392b',bg:'#fdecea'};
+  return {e:ICONS.def, c:'#254a8e',bg:'#eef2fb'};
+}
+
+function mki(c, active) {
+  const r = active ? 10 : 7;
+  return L.divIcon({
+    html:`<svg width="${r*2+4}" height="${r*3}" viewBox="0 0 ${r*2+4} ${r*3}">
+      <circle cx="${r+2}" cy="${r+1}" r="${r}" fill="${c}" stroke="#fff" stroke-width="1.5" opacity="${active?1:.85}"/>
+      <line x1="${r+2}" y1="${r*2+1}" x2="${r+2}" y2="${r*3-1}" stroke="${c}" stroke-width="1.8" opacity=".7"/>
+    </svg>`,
+    className:'', iconSize:[r*2+4,r*3], iconAnchor:[r+2,r*3-1], popupAnchor:[0,-r*3]
+  });
+}
+
+// Přidej markery
+SITES.forEach(s => {
+  if(!s.coords||!s.coords[0]) return;
+  const [lat,lon] = s.coords;
+  const st = sty(s.typ);
+  const mk = L.marker([lat,lon], {icon: mki(st.c, false)});
+  mk.bindPopup(`<div class="popup-title">${e(s.nazev)}</div><div class="popup-sub">${e(s.katastr||'')}</div><div class="popup-type">${e(s.typ||'')}</div>`);
+  mk.on('click', () => sel(s.id));
+  mk.addTo(map);
+  mkMap[s.id] = mk;
+});
+
+function rl() {
+  const q = document.getElementById('search-inp').value.toLowerCase();
+  const ft = document.getElementById('ftyp').value;
+  const fk = document.getElementById('fkat').value;
+  filt = SITES.filter(s => {
+    if(!siteMatchesEra(s, activeEra)) return false;
+    if(ft && s.typ !== ft) return false;
+    if(fk && s.katastr !== fk) return false;
+    if(q && !(s.nazev+' '+s.katastr+' '+s.typ+' '+(s.popis||'')).toLowerCase().includes(q)) return false;
+    return true;
+  });
+  // Zobraz/skryj markery
+  SITES.forEach(s => {
+    const mk = mkMap[s.id];
+    if(!mk) return;
+    if(filt.find(x=>x.id===s.id)) { if(!map.hasLayer(mk)) mk.addTo(map); }
+    else { if(map.hasLayer(mk)) map.removeLayer(mk); }
+  });
+  document.getElementById('cnt').textContent = filt.length;
+  // Update era counts
+  ERAS.forEach(era => {
+    const n = SITES.filter(s => siteMatchesEra(s, era.id)).length;
+    const el = document.getElementById('ec-' + era.id);
+    if(el) { el.textContent = n; }
+  });
+  const lst = document.getElementById('list');
+  if(!filt.length) {
+    lst.innerHTML = `<div id="empty-state"><div class="empty-icon">🔍</div><p>Žádné lokality neodpovídají zadaným filtrům.</p></div>`;
+    return;
+  }
+  lst.innerHTML = filt.map(s => {
+    const st = sty(s.typ);
+    const per = (s.periods||[]).slice(0,2).join(' · ');
+    return `<div class="site-item${s.id===act?' active':''}" onclick="sel('${s.id}')">
+      <div class="site-icon" style="background:${st.bg};color:${st.c}">${st.e}</div>
+      <div class="item-body">
+        <div class="item-title">${e(s.nazev)}</div>
+        <div class="item-id">${e(s.id)}</div>
+        <div class="item-sub">${e(s.katastr||'')}${per?' · '+e(per):''}</div>
+        <span class="item-tag">${e(s.typ||'Neurčeno')}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function sel(id) {
+  act = id;
+  const s = SITES.find(x=>x.id===id);
+  if(!s) return;
+  // Sidebar
+  document.querySelectorAll('.site-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.site-item').forEach(el => {
+    if((el.getAttribute('onclick')||'').includes("'"+id+"'")) el.classList.add('active');
+  });
+  // Mapa
+  if(s.coords&&s.coords[0]) {
+    map.setView(s.coords, Math.max(map.getZoom(),13), {animate:true});
+    mkMap[id]?.openPopup();
+  }
+  // Detail panel
+  const st = sty(s.typ);
+  const per = [...new Set((s.periods||[]).filter(Boolean))];
+  const dpIco = document.getElementById('dp-icon');
+  if(dpIco) { dpIco.style.color = st.c; dpIco.style.background = st.bg; dpIco.innerHTML = st.e; }
+  document.getElementById('dp-title').textContent = s.nazev || s.id;
+  document.getElementById('dp-left').innerHTML = `
+    <h3>Základní informace</h3>
+    <div class="detail-row"><span class="detail-label">Typ lokality</span><span class="detail-value">${e(s.typ||'—')}</span></div>
+    ${s.zachov?`<div class="detail-row"><span class="detail-label">Zachovalost</span><span class="detail-value">${e(s.zachov)}</span></div>`:''}
+    ${s.katastr?`<div class="detail-row"><span class="detail-label">Katastrální území</span><span class="detail-value">${e(s.katastr)}</span></div>`:''}
+    <div class="detail-row"><span class="detail-label">Okres</span><span class="detail-value">Plzeň-sever</span></div>
+    ${s.coords?`<div class="detail-row"><span class="detail-label">Souřadnice</span><span class="detail-value">${(+s.coords[0]).toFixed(5)}°N, ${(+s.coords[1]).toFixed(5)}°E</span></div>`:''}
+    <div class="detail-row"><span class="detail-label">ID záznamu</span><span class="detail-value" style="font-size:11px;opacity:.6">${e(s.id)}</span></div>
+    <a class="detail-link" href="https://digiarchiv.aiscr.cz/id/${e(s.id)}" target="_blank" rel="noopener">🔗 Otevřít v Digitálním archivu</a>
+  `;
+  let r = '<h3>Popis &amp; datace</h3>';
+  if(per.length) r += `<div class="period-chips">${per.map(p=>`<span class="period-chip">${e(p)}</span>`).join('')}</div>`;
+  if(s.popis) r += `<p class="detail-popis">${e(s.popis)}</p>`;
+  if(s.poznamka) r += `<div class="detail-row" style="margin-top:10px"><span class="detail-label">Poznámka</span><span class="detail-value">${e(s.poznamka)}</span></div>`;
+  if(!per.length && !s.popis) r += '<p style="font-size:13px;color:var(--text-tertiary,#999)">Žádné další informace v záznamu.</p>';
+  document.getElementById('dp-right').innerHTML = r;
+  document.getElementById('detail-panel').classList.add('open');
+  setTimeout(() => map.invalidateSize(), 310);
+}
+
+function closeDetail() {
+  document.getElementById('detail-panel').classList.remove('open');
+  setTimeout(() => map.invalidateSize(), 310);
+  act = null;
+  document.querySelectorAll('.site-item').forEach(el => el.classList.remove('active'));
+}
+
+function e(s) {
+  if(!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Init
+rl();
+</script>
+</body>
+</html>
